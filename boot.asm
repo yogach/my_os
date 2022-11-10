@@ -50,10 +50,10 @@ start:
 	call FindEntry
 	
 	cmp dx, 0
-	jz cmp_ok
+	jz notfind
 	jmp last
 	
-cmp_ok:
+notfind:
     mov bp, MsgStr
 	mov cx, MsgLen
 	call print
