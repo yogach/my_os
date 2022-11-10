@@ -5,6 +5,8 @@ nop
 
 define:
     BaseOfStack equ 0x7c00 
+	RootEntryOffset  equ 19
+	RootEntryLength  equ 14
 	
 header:
     BS_OEMName     db "D.T.Soft"
@@ -34,28 +36,98 @@ start:
 	mov ds, ax
 	mov es, ax
 	mov sp, BaseOfStack ;设置栈地址
-	
-	;调用打印函数
-	;mov bp, MsgStr
-	;mov cx, MsgLen
-	;call print
-	
-	mov ax, 42    
-	mov cx, 1
+    
+	mov ax, RootEntryOffset
+	mov cx, RootEntryLength
 	mov bx, Buf
 	
-	call ReadSector
+	call ReadSector ;将根目录区拷贝到内存
 	
-	mov bp, Buf
-	mov cx, 13	
+	mov si, MsgStr2
+	mov cx, MsgLen2
+	mov dx, 0
+	
+	call FindEntry
+	
+	cmp dx, 0
+	jz cmp_ok
+	jmp last
+	
+cmp_ok:
+    mov bp, MsgStr
+	mov cx, MsgLen
 	call print
 	
-	
-
 last:
     hlt     ;休眠一段时间
     jmp last
 
+; es:bx --> root entry offset address
+; ds:si --> target string
+; cx    --> target length
+;
+; return:
+;     (dx != 0) ? exist : noexist
+;        exist --> bx is the target entry
+FindEntry:
+	push di
+	push bp
+	push cx
+	
+	mov dx, [BPB_RootEntCnt] ;dx保存的是分区内最多保存多少文件数
+	mov bp, sp
+	
+find:
+	cmp dx, 0
+	jz noexist
+	mov di, bx
+	mov cx, [bp] ;从栈上得到比较长度
+	call MemCmp
+	cmp cx, 0
+	jz exist
+	add bx, 32 ;bx指向下一个文件的根目录文件信息
+	dec dx
+	jmp find
+	
+exist:
+noexist:
+	pop cx
+	pop bp
+	pop di
+	
+	ret
+
+; ds:si --> source
+; es:di --> destination
+; cx    --> length
+;
+; return :
+;	     (cx == 0) ? equal : noequal
+MemCmp:
+	push si
+	push di
+	push ax
+
+compare:
+	cmp cx, 0 
+	jz equal 
+	mov al, [si]
+	cmp al, byte [di] ;按字节进行比较
+	jz goon
+	jmp noequal
+goon:
+	inc si ;进入这里代表此次对比成功
+	inc di 
+	dec cx
+	jmp compare
+
+equal:
+noequal:
+	pop ax
+	pop di
+	pop si
+	
+	ret 
 ;es:bp --> string address
 ;cx    --> string length
 print:
@@ -65,7 +137,7 @@ print:
     ret
 
 ;no parameter
-ResetFloopy:
+ResetFloppy:
     push ax
 	push dx
 	
@@ -80,14 +152,14 @@ ResetFloopy:
 	
 ; ax    --> logic sector number
 ; cx    --> number of sector
-; es:bx --> target addrss	
+; es:bx --> target address	
 ReadSector:
 	push bx
 	push cx
 	push dx
 	push ax
 	
-	call ResetFloopy
+	call ResetFloppy
 	
 	push bx
 	push cx
@@ -117,9 +189,13 @@ read:
 	pop bx
 	
 	ret
+	
 
-MsgStr db "Hello, DTOS!"
+
+MsgStr db "No LOADER ..."
 MsgLen equ ($-MsgStr) ;$代表当前行地址 结果是得到MsgStr的长度
+MsgStr2 db "LOADER     "  ;无法定义成Target 很奇怪
+MsgLen2 equ ($-MsgStr2)
 Buf:
     times 510-($-$$) db 0x00 ;$为当前行地址 $$为代码起始行地址 作用是填充数据到512字节
     db 0x55, 0xaa ;结尾填上主引导程序标识
