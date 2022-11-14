@@ -5,8 +5,13 @@ nop
 
 define:
     BaseOfStack equ 0x7c00 
+	BaseOfLoader equ 0x9000
 	RootEntryOffset  equ 19
 	RootEntryLength  equ 14
+	EntryItemLength  equ 32 ;目标文件根目录信息长度
+	FatEntryOffset   equ 1  ;fat表逻辑扇区号
+	FatEntryLength   equ 9
+	
 	
 header:
     BS_OEMName     db "D.T.Soft"
@@ -51,6 +56,30 @@ start:
 	
 	cmp dx, 0
 	jz notfind
+	
+	;将目标文件根目录信息拷贝到指定区域
+    mov si, bx
+	mov di, EntryItem
+	mov cx, EntryItemLength
+	
+	call MemCpy
+	
+	;计算fat的长度 然后拷贝到BaseOfLoader的前面
+	mov ax, FatEntryLength
+	mov cx, [BPB_BytsPerSec]
+	mul cx 
+	mov bx, BaseOfLoader
+	sub bx, ax
+	
+	mov ax, FatEntryOffset
+	mov cx, FatEntryLength
+	
+	call ReadSector
+	
+	mov cx, [EntryItem + 0x1A]
+	
+	call FatVec ;读取fat表项的值
+	
 	jmp last
 	
 notfind:
@@ -61,6 +90,114 @@ notfind:
 last:
     hlt     ;休眠一段时间
     jmp last
+
+; cx --> index FatVec下标
+; bx -->fat table addrss
+;
+; return:
+;      dx --> fat[index]
+FatVec:    
+    ;Fat表起始字节 = FatVec下标 / 2 * 3
+	mov ax, cx
+	mov cl, 2
+	div cl  
+
+	push ax ;保存除法结果
+	
+	mov ah, 0
+	mov cx, 3
+	mul cx
+	mov cx, ax ;Fat表起始字节 保存在cx中
+	
+	pop ax
+	
+	;判断余数
+	cmp ah, 0
+	jz even
+	jmp odd
+	
+even: ; FatVec[j] = ( (Fat[i+1] & 0x0F) << 8 ) | Fat[i];
+	mov dx, cx
+	add dx, 1
+	add dx, bx  ;dx指向对应的fat表项地址 
+	mov bp, dx  
+	mov dl, byte [bp] ;得到对应数据
+	and dl, 0x0F
+	shl dx, 8
+	add cx, bx
+	mov bp, cx
+	or dl, byte [bp]
+	jmp return 
+	
+odd: ; FatVec[j+1] = (Fat[i+2] << 4) | ( (Fat[i+1] >> 4) & 0x0F );
+	mov dx, cx
+	add dx, 2
+	add dx, bx
+	mov bp, dx
+	mov dl, byte [bp]
+	mov dh, 0
+	shl dx, 4 ;左移4位
+	add cx, 1
+	add cx, bx
+	mov bp, cx
+	mov cl, byte [bp]
+	shr cl, 4 ;右移4位
+	and cl, 0x0F
+	mov ch, 0
+	or dx, cx 
+	
+
+return:
+	ret
+	
+	
+; ds:si --> source
+; es:di --> destination
+; cx    --> length
+MemCpy:
+	push si
+	push di
+	push cx
+	push ax
+	
+	cmp si, di ;对比源地址和目标地址前后顺序
+	
+	ja btoe
+	
+	;进入此处代表需要从后往前拷贝
+	add si, cx
+	add di, cx
+	dec si
+	dec di
+	
+	jmp etob
+	
+btoe:
+	cmp cx, 0
+	jz done
+	mov al, [si]
+	mov byte [di], al
+	inc si
+	inc di
+	dec cx 
+	jmp btoe
+
+etob:
+	cmp cx, 0
+	jz done
+	mov al, [si]
+	mov byte [di], al
+	dec si
+	dec di 
+	dec cx
+	jmp etob
+
+done:
+	pop ax
+	pop cx
+	pop di
+	pop si
+	ret
 
 ; es:bx --> root entry offset address
 ; ds:si --> target string
@@ -194,8 +331,9 @@ read:
 
 MsgStr db "No LOADER ..."
 MsgLen equ ($-MsgStr) ;$代表当前行地址 结果是得到MsgStr的长度
-MsgStr2 db "LOADER     "  ;无法定义成Target 很奇怪
+MsgStr2 db "LOADER     "  
 MsgLen2 equ ($-MsgStr2)
+EntryItem times EntryItemLength db 0x00 ;定义一块区域
 Buf:
     times 510-($-$$) db 0x00 ;$为当前行地址 $$为代码起始行地址 作用是填充数据到512字节
     db 0x55, 0xaa ;结尾填上主引导程序标识
