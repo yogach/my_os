@@ -42,20 +42,23 @@ start:
 	mov es, ax
 	mov sp, BaseOfStack ;设置栈地址
     
+	;将根目录区拷贝到内存
 	mov ax, RootEntryOffset
 	mov cx, RootEntryLength
 	mov bx, Buf
 	
-	call ReadSector ;将根目录区拷贝到内存
+	call ReadSector 
 	
+	;查找目标文件在目录中是否存在
 	mov si, MsgStr2
 	mov cx, MsgLen2
 	mov dx, 0
 	
-	call FindEntry
+	call FindEntry 
 	
+	;如果找不到则跳转到失败
 	cmp dx, 0
-	jz notfind
+	jz output
 	
 	;将目标文件根目录信息拷贝到指定区域
     mov si, bx
@@ -64,7 +67,7 @@ start:
 	
 	call MemCpy
 	
-	;计算fat的长度 然后拷贝到BaseOfLoader的前面
+	;计算fat表的长度 然后拷贝到BaseOfLoader的前面
 	mov ax, FatEntryLength
 	mov cx, [BPB_BytsPerSec]
 	mul cx 
@@ -76,15 +79,28 @@ start:
 	
 	call ReadSector
 	
-	mov cx, [EntryItem + 0x1A]
+	mov dx, [EntryItem + 0x1A]
+	mov si, BaseOfLoader
 	
-	call FatVec ;读取fat表项的值
+loading:
+	mov ax, dx  ;dx保存的是目标文件数据的从0开始的偏移簇号
+	add ax, 31  ;加31 得到数据实际的开始簇号 
+	mov cx, 1
+	push dx
+	push bx
+	mov bx, si  ;si指向目标位置
+	call ReadSector
+	pop bx
+	pop cx       ;cx为偏移簇号
+	call FatVec  ;读取fat 得到下一个簇号
+	cmp dx, 0xff7    ;如果大于这个值 则代表文件内容已经读取完毕
+	jnb output 
+	add si, 512   ;指向下一个扇区
+	jmp loading
 	
-	jmp last
-	
-notfind:
-    mov bp, MsgStr
-	mov cx, MsgLen
+output:
+    mov bp, BaseOfLoader
+	mov cx, [EntryItem + 0x1C]
 	call print
 	
 last:
@@ -155,10 +171,6 @@ return:
 ; es:di --> destination
 ; cx    --> length
 MemCpy:
-	push si
-	push di
-	push cx
-	push ax
 	
 	cmp si, di ;对比源地址和目标地址前后顺序
 	
@@ -193,10 +205,6 @@ etob:
 	jmp etob
 
 done:
-	pop ax
-	pop cx
-	pop di
-	pop si
 	ret
 
 ; es:bx --> root entry offset address
@@ -207,8 +215,6 @@ done:
 ;     (dx != 0) ? exist : noexist
 ;        exist --> bx is the target entry
 FindEntry:
-	push di
-	push bp
 	push cx
 	
 	mov dx, [BPB_RootEntCnt] ;dx保存的是分区内最多保存多少文件数
@@ -219,7 +225,9 @@ find:
 	jz noexist
 	mov di, bx
 	mov cx, [bp] ;从栈上得到比较长度
+        push si
 	call MemCmp
+        pop si
 	cmp cx, 0
 	jz exist
 	add bx, 32 ;bx指向下一个文件的根目录文件信息
@@ -229,8 +237,6 @@ find:
 exist:
 noexist:
 	pop cx
-	pop bp
-	pop di
 	
 	ret
 
@@ -241,9 +247,6 @@ noexist:
 ; return :
 ;	     (cx == 0) ? equal : noequal
 MemCmp:
-	push si
-	push di
-	push ax
 
 compare:
 	cmp cx, 0 
@@ -260,14 +263,12 @@ goon:
 
 equal:
 noequal:
-	pop ax
-	pop di
-	pop si
 	
 	ret 
 ;es:bp --> string address
 ;cx    --> string length
 print:
+    mov dx, 0
     mov ax, 0x1301
     mov bx, 0x0007
     int 0x10    ;调用bios中断打印字符串
@@ -275,26 +276,17 @@ print:
 
 ;no parameter
 ResetFloppy:
-    push ax
-	push dx
 	
 	mov ah, 0x00
 	mov dl, [BS_DrvNum]
 	int 0x13
-	
-	pop dx
-	pop ax
-	
+
 	ret
 	
 ; ax    --> logic sector number
 ; cx    --> number of sector
 ; es:bx --> target address	
 ReadSector:
-	push bx
-	push cx
-	push dx
-	push ax
 	
 	call ResetFloppy
 	
@@ -319,11 +311,6 @@ ReadSector:
 read:
 	int 0x13
 	jc read ; 当运算产生进位标志时，即CF=1时，跳转到目标程序处。
-	
-	pop ax
-	pop dx
-	pop cx
-	pop bx
 	
 	ret
 	
