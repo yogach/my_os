@@ -94,13 +94,15 @@ loading:
 	pop cx       ;cx为偏移簇号
 	call FatVec  ;读取fat 得到下一个簇号
 	cmp dx, 0xff7    ;如果大于这个值 则代表文件内容已经读取完毕
-	jnb output 
+	jnb BaseOfLoader 
 	add si, 512   ;指向下一个扇区
 	jmp loading
 	
 output:
-    mov bp, BaseOfLoader
-	mov cx, [EntryItem + 0x1C]
+    ;mov bp, BaseOfLoader
+	;mov cx, [EntryItem + 0x1C]
+	mov bp, MsgStr
+	mov cx, MsgLen
 	call print
 	
 last:
