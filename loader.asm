@@ -11,7 +11,7 @@ GDT_ENTRY       : Descriptor      0,                  0,                0
 CODE32_DESC     : Descriptor      0,             Code32Seglen - 1,    DA_C + DA_32
 VIDEO_DESC      : Descriptor   0xB8000,          0xBFFFF - 0xB8000,   DA_DRWA + DA_32
 DATA32_DESC     : Descriptor      0,             Data32SegLen - 1,    DA_DR + DA_32
-STACK_DESC      : Descriptor      0,             TopOfStackInit,      DA_DRW + DA_32
+STACK32_DESC    : Descriptor      0,             TopOfStack32,        DA_DRW + DA_32
 ; GDT end
 
 GdtLen    equ $ - GDT_ENTRY ; GDT长度
@@ -30,7 +30,7 @@ StackSelector    equ (0x0004 << 3) + SA_TIG + SA_RPL0
 
 ; end of [section .gdt]		  
 
-TopOfStackInit   equ 0x7c00 
+TopOfStack16   equ 0x7c00 
 
 [section .dat]
 [bits 32]
@@ -49,8 +49,7 @@ CODE16_SEGMENT:
 	 mov ds, ax
 	 mov es, ax
 	 mov ss, ax
-	 mov sp, TopOfStackInit
-	 
+	 mov sp, TopOfStack16	 
 	 
 	 ; initialize GDT for 32bit code segment
 	 mov esi, CODE32_SEGMENT
@@ -60,6 +59,11 @@ CODE16_SEGMENT:
 	 
 	 mov esi, DATA32_SEGMENT
 	 mov edi, DATA32_DESC
+	 call InitDescItem
+	 
+	 ;定义32位栈段的段基地址
+	 mov esi, STACK32_SEGMENT
+	 mov edi, STACK32_DESC
 	 call InitDescItem
 	 
 	 ; initialize GDT pointer struct
@@ -113,8 +117,13 @@ CODE32_SEGMENT:
 	 mov ax, VideoSelector
 	 mov gs, ax            ;显存段选择子
 	 
+	 ;设置栈 段地址
 	 mov ax, StackSelector
 	 mov ss, ax
+	 
+	 ;设置栈顶指针
+	 mov eax, TopOfStack32
+	 mov esp, eax
 	 
 	 mov ax, Data32Selector
 	 mov ds, ax
@@ -173,8 +182,16 @@ end:
       pop eax
       pop ebp
 
-      ret	  
-	  
+      ret
 	 
 Code32Seglen equ  $ -  CODE32_SEGMENT
+
+;定义栈段
+[section .gs]
+[bits 32]
+STACK32_SEGMENT:
+    times 1024 * 4 db 0
+	
+Stack32SegLen equ $ - STACK32_SEGMENT
+TopOfStack32  equ Stack32SegLen - 1
 	 
