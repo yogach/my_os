@@ -35,11 +35,12 @@ TopOfStackInit   equ 0x7c00
 [section .dat]
 [bits 32]
 DATA32_SEGMENT:
-	DTOS          db  "D.T.OS!", 0
-	DTOS_OFFSET   equ DTOS - $$   ;得到DTOS数据段在DATA32_SEGMENT的偏移位置
-	HELLO_WROLD   db  "Hello World!", 0
-	HELLO_WROLD_OFFSET db HELLO_WROLD - $$
+	DTOS               db  "D.T.OS!", 0
+	DTOS_OFFSET        equ DTOS - $$   ;得到DTOS数据段在DATA32_SEGMENT的偏移位置
+	HELLO_WROLD        db  "Hello World!", 0
+	HELLO_WROLD_OFFSET equ HELLO_WROLD - $$
 
+Data32SegLen equ $ - DATA32_SEGMENT
 
 [section .s16]
 [bits 16] ;定义为16位编译
@@ -121,6 +122,13 @@ CODE32_SEGMENT:
 	 mov ebp, DTOS_OFFSET
 	 mov bx, 0x0c
 	 mov dh, 12
+	 mov dl, 33
+	 
+	 call PrintString
+	 
+	 mov ebp, HELLO_WROLD_OFFSET
+	 mov bx, 0x0c
+	 mov dh, 13
 	 mov dl, 33
 	 
 	 call PrintString
