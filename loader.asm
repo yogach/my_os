@@ -2,7 +2,7 @@
 
 org 0x9000
 
-jmp CODE16_SEGMENT
+jmp ENTRY_SEGMENT
 
 [section .gdt]  
 ; GDT definition
@@ -12,6 +12,8 @@ CODE32_DESC     : Descriptor      0,             Code32Seglen - 1,    DA_C + DA_
 VIDEO_DESC      : Descriptor   0xB8000,          0xBFFFF - 0xB8000,   DA_DRWA + DA_32
 DATA32_DESC     : Descriptor      0,             Data32SegLen - 1,    DA_DR + DA_32
 STACK32_DESC    : Descriptor      0,             TopOfStack32,        DA_DRW + DA_32
+CODE16_DESC     : Descriptor      0,               0xFFFF,            DA_C
+UPDATA_DESC     : Descriptor      0,               0xFFFF,            DA_DRW
 ; GDT end
 
 GdtLen    equ $ - GDT_ENTRY ; GDT长度
@@ -27,29 +29,35 @@ Code32Selector   equ (0x0001 << 3) + SA_TIG + SA_RPL0
 VideoSelector    equ (0x0002 << 3) + SA_TIG + SA_RPL0
 Data32Selector   equ (0x0003 << 3) + SA_TIG + SA_RPL0
 StackSelector    equ (0x0004 << 3) + SA_TIG + SA_RPL0
+Code16Selector   equ (0x0005 << 3) + SA_TIG + SA_RPL0
+UpdateSelector   equ (0x0006 << 3) + SA_TIG + SA_RPL0
 
 ; end of [section .gdt]		  
 
 TopOfStack16   equ 0x7c00 
 
+;32位数据段
 [section .dat]
 [bits 32]
 DATA32_SEGMENT:
 	DTOS               db  "D.T.OS!", 0
 	DTOS_OFFSET        equ DTOS - $$   ;得到DTOS数据段在DATA32_SEGMENT的偏移位置
-	HELLO_WROLD        db  "Hello World!", 0
-	HELLO_WROLD_OFFSET equ HELLO_WROLD - $$
+	HELLO_WORLD        db  "Hello World!", 0
+	HELLO_WORLD_OFFSET equ HELLO_WORLD - $$
 
 Data32SegLen equ $ - DATA32_SEGMENT
 
+;16位 实模式代码段
 [section .s16]
-[bits 16] ;定义为16位编译
-CODE16_SEGMENT:
+[bits 16] 
+ENTRY_SEGMENT:
      mov ax, cs
 	 mov ds, ax
 	 mov es, ax
 	 mov ss, ax
-	 mov sp, TopOfStack16	 
+	 mov sp, TopOfStack16
+	 
+	 mov [BACK_TO_REAL_MODE + 3], ax ; 修改对应指令的地址 将cs替换掉对应的0跳转地址
 	 
 	 ; initialize GDT for 32bit code segment
 	 mov esi, CODE32_SEGMENT
@@ -65,6 +73,13 @@ CODE16_SEGMENT:
 	 mov esi, STACK32_SEGMENT
 	 mov edi, STACK32_DESC
 	 call InitDescItem
+	 
+	 ;定义16位保护模式段 段基地址
+         mov esi, CODE16_SEGMENT
+         mov edi, CODE16_DESC
+    
+         call InitDescItem
+	 
 	 
 	 ; initialize GDT pointer struct
 	 mov eax, 0
@@ -91,6 +106,31 @@ CODE16_SEGMENT:
 	 
 	 ; 5. jmp to 32 bits code 使用选择子进行跳转 进入保护模式
 	 jmp dword Code32Selector : 0 ;跳转到 CODE32_SEGMENT : 0开始的地方
+	 
+BACK_ENTRY_SEGMENT:
+    ;重新设置寄存器
+    mov ax, cs
+	mov ds, ax
+	mov es, ax
+	mov ss, ax
+	mov sp, TopOfStack16
+	
+	;关闭a20总线
+	in al, 0x92
+	and al, 11111101b
+	out 0x92, al
+	
+	;打开中断
+	sti
+	
+	mov bp, HELLO_WORLD
+	mov cx, 12
+	mov dx, 0
+	mov ax, 0x1301
+	mov bx, 0x0007
+	int 0x10
+	
+	jmp $
 
 ; esi --> code segment label
 ; edi --> descriptor label
@@ -111,6 +151,30 @@ InitDescItem:
 	 pop eax
 	 ret
 	 
+[section .s16]
+[bits 16]
+CODE16_SEGMENT:
+    ;使用选择子来刷新高速缓冲寄存器
+    mov ax, UpdateSelector
+    mov ds, ax
+	mov es, ax
+	mov fs, ax
+	mov gs, ax
+	mov ss, ax
+	
+	;退出保护模式
+	mov eax, cr0
+	and al, 11111110b
+	mov cr0, eax
+    	 
+
+BACK_TO_REAL_MODE:
+    jmp 0 : BACK_ENTRY_SEGMENT  ;跳转到实模式 因为进入此段时还是保护模式 所以这里的跳转地址如果超过了段界限 cpu会报异常
+    
+
+Code16SegLen equ  $ - CODE16_SEGMENT
+	 
+; 32为保护模式代码段	 
 [section .s32]
 [bits 32]	 ;定义为32位编译
 CODE32_SEGMENT:
@@ -135,7 +199,7 @@ CODE32_SEGMENT:
 	 
 	 call PrintString
 	 
-	 mov ebp, HELLO_WROLD_OFFSET
+	 mov ebp, HELLO_WORLD_OFFSET
 	 mov bx, 0x0c
 	 mov dh, 13
 	 mov dl, 33
@@ -143,7 +207,7 @@ CODE32_SEGMENT:
 	 call PrintString
 	 
 	 
-	 jmp $	 
+	 jmp Code16Selector : 0	 
 
 ; ds:ebp  --> string address
 ; bx      --> attribute 
@@ -186,7 +250,7 @@ end:
 	 
 Code32Seglen equ  $ -  CODE32_SEGMENT
 
-;定义栈段
+;定义保护模式栈段
 [section .gs]
 [bits 32]
 STACK32_SEGMENT:
