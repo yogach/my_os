@@ -14,7 +14,8 @@ DATA32_DESC     : Descriptor      0,             Data32SegLen - 1,    DA_DR + DA
 STACK32_DESC    : Descriptor      0,             TopOfStack32,        DA_DRW + DA_32
 CODE16_DESC     : Descriptor      0,               0xFFFF,            DA_C
 UPDATA_DESC     : Descriptor      0,               0xFFFF,            DA_DRW
-TASK_A_LDT_DESC : Descriptor      0,             TaskALdtLen - 1,     DA_LDT 
+TASK_A_LDT_DESC : Descriptor      0,             TaskALdtLen - 1,     DA_LDT
+FUNCTION_DESC   : Descriptor      0,            FunctionSegLen - 1,   DA_C + DA_32
 ; GDT end
 
 GdtLen    equ $ - GDT_ENTRY ; GDT长度
@@ -33,6 +34,7 @@ StackSelector    equ (0x0004 << 3) + SA_TIG + SA_RPL0
 Code16Selector   equ (0x0005 << 3) + SA_TIG + SA_RPL0
 UpdateSelector   equ (0x0006 << 3) + SA_TIG + SA_RPL0
 TaskALdtSelector equ (0x0007 << 3) + SA_TIG + SA_RPL0
+FunctionSelector equ (0x0008 << 3) + SA_TIG + SA_RPL0
 
 ; end of [section .gdt]		  
 
@@ -101,6 +103,11 @@ ENTRY_SEGMENT:
 	
 	mov esi, TASK_A_STACK32_SEGMENT
 	mov edi, TASK_A_STACK32_DESC
+
+	call InitDescItem
+
+	mov esi, FUNCTION_SEGMENT
+	mov edi, FUNCTION_DESC
 
 	call InitDescItem	
 	
@@ -196,52 +203,14 @@ BACK_TO_REAL_MODE:
     
 
 Code16SegLen equ  $ - CODE16_SEGMENT
-	 
-; 32为保护模式代码段	 
-[section .s32]
-[bits 32]	 ;定义为32位编译
-CODE32_SEGMENT:
-	mov ax, VideoSelector
-	mov gs, ax            ;显存段选择子
-	
-	;设置栈 段地址
-	mov ax, StackSelector
-	mov ss, ax
-	
-	;设置栈顶指针
-	mov eax, TopOfStack32
-	mov esp, eax
-	
-	mov ax, Data32Selector
-	mov ds, ax
-	
-	mov ebp, DTOS_OFFSET
-	mov bx, 0x0c
-	mov dh, 12
-	mov dl, 33
-	
-	call PrintString
-	
-	mov ebp, HELLO_WORLD_OFFSET
-	mov bx, 0x0c
-	mov dh, 13
-	mov dl, 33
-	
-	call PrintString
-	
-	;加载局部段描述符
-	mov ax, TaskALdtSelector
-	
-	lldt ax
-	
-	jmp TaskACode32Selector : 0
-	
-	;jmp Code16Selector : 0	  ;保护模式回实模式入口
 
+[section .func]
+[bits 32]
+FUNCTION_SEGMENT:
 ; ds:ebp  --> string address
 ; bx      --> attribute 
 ; dx      --> dh : row, dl : col
-PrintString:
+PrintStringFunc:
 	push ebp
 	push eax
 	push edi
@@ -275,7 +244,52 @@ end:
    pop eax
    pop ebp
    
-   ret
+   retf
+
+PrintString equ PrintStringFunc - $$
+
+FunctionSegLen  equ  $ - FUNCTION_SEGMENT
+	 
+; 32为保护模式代码段	 
+[section .s32]
+[bits 32]	 ;定义为32位编译
+CODE32_SEGMENT:
+	mov ax, VideoSelector
+	mov gs, ax            ;显存段选择子
+	
+	;设置栈 段地址
+	mov ax, StackSelector
+	mov ss, ax
+	
+	;设置栈顶指针
+	mov eax, TopOfStack32
+	mov esp, eax
+	
+	mov ax, Data32Selector
+	mov ds, ax
+	
+	mov ebp, DTOS_OFFSET
+	mov bx, 0x0c
+	mov dh, 12
+	mov dl, 33
+	
+	call FunctionSelector : PrintString
+	
+	mov ebp, HELLO_WORLD_OFFSET
+	mov bx, 0x0c
+	mov dh, 13
+	mov dl, 33
+	
+	call FunctionSelector : PrintString
+	
+	;加载局部段描述符
+	mov ax, TaskALdtSelector
+	
+	lldt ax
+	
+	jmp TaskACode32Selector : 0
+	
+	;jmp Code16Selector : 0	  ;保护模式回实模式入口
    
 Code32Seglen equ  $ -  CODE32_SEGMENT
 
@@ -346,50 +360,11 @@ TASK_A_CODE32_SEGMENT:
 	mov dh, 14
 	mov dl, 29
 	
-	call TaskAPrintString  ;无法直接调用PrintString 因为这个在其他段中
+	call FunctionSelector : PrintString 
 	
 	jmp Code16Selector : 0 
 
-
-; ds:ebp  --> string address
-; bx      --> attribute 
-; dx      --> dh : row, dl : col
-TaskAPrintString:
-	push ebp
-	push eax
-	push edi
-	push cx
-	push dx
-
-task_print:
-   mov cl, [ds:ebp]
-   cmp cl, 0       
-   je task_end     ;cl为0 代表字符串打印结束
-   
-   ; edi = (80 * dh + dl) * 2
-   mov eax, 80
-   mul dh
-   add al, dl
-   shl eax, 1 ;左移一位等于*2
-   mov edi, eax 
-   
-   mov ah, bl ;字符的属性
-   mov al, cl ;要显示的字符
-   mov [gs:edi], ax
-   inc ebp
-   inc dl
-   jmp task_print
-   
-
-task_end:
-   pop dx
-   pop cx
-   pop edi
-   pop eax
-   pop ebp
-   
-   ret
-   	
+  	
 TaskACode32SegLen   equ $ - TASK_A_CODE32_SEGMENT	
 
 	
