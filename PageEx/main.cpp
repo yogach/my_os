@@ -124,12 +124,12 @@ public:
 };
 
 FrameItem FrameTable[FRAME_NUM];  //全局页框表
-QList<PCB*> TaskTable;   //任务列表
+QList<PCB*> TaskTable;       //任务列表
 
-int GetFrameItem();  //获取空闲的页框表项
+int GetFrameItem();          //获取空闲的页框表项
 void AccessPage(PCB& pcb);   //模仿任务访问页面
 int RequestPage(int pid, int page); //请求页框
-int SwapPage();    //交换页框
+int SwapPage();              //交换页框
 void PrintLog(QString log);
 void PrintPageMap(int pid, int page, int frame);
 void PrintFatalError(QString s, int pid, int page);
@@ -140,7 +140,7 @@ int GetFrameItem()
 
     for(int i=0; i<FRAME_NUM; i++)
     {
-        //找到空闲的页框表项
+        //找到空闲的页框
         if( FrameTable[i].pid == FP_NONE )
         {
             ret = i;
@@ -195,12 +195,76 @@ void AccessPage(PCB& pcb)
 
 int RequestPage(int pid, int page)
 {
+    int frame = GetFrameItem(); //获取空闲的页框
 
+    if( frame != FP_NONE )
+    {
+        //获取到空闲的页框
+        PrintLog("Get a frame to hold page content: Frame" + QString::number(frame));
+    }
+    else
+    {
+        //没有获取到空闲的页框
+        PrintLog("No free frame to allocate, need to swap page out.");
+
+        frame = SwapPage(); //执行页交换
+
+        if( frame != FP_NONE )
+        {
+            PrintLog("Succeed to swap lazy page out.");
+        }
+        else
+        {
+            PrintFatalError("Failed to swap page out.", pid, FP_NONE);
+        }
+
+    }
+
+    PrintLog("Load content from disk to Frame" + QString::number(frame));
+
+    //记录使用页框的任务和对应的页表
+    FrameTable[frame].pid = pid;
+    FrameTable[frame].pnum = page;
+
+    return frame;
 }
 
 int Random()
 {
+    //按简单的做 直接随机选择一个页框
+    int obj = qrand() % FRAME_NUM;
 
+    PrintLog("Random select a frame to swap page content out: Frame" + QString::number(obj));
+
+    //实际上选择一个要交换的页框后 需要将数据写回到硬盘
+    PrintLog("Write the selected page content back to disk.");
+
+    //清空页框
+    FrameTable[obj].pid = FP_NONE;
+    FrameTable[obj].pnum = FP_NONE;
+
+    //查找每个任务内的页表中是否有对应页框 如果有清空
+    for(int i=0, f=0; (i<TaskTable.count()) && !f; i++)
+    {
+        PageTable& pt = TaskTable[i]->getPageTable();
+
+        for(int j=0; j<pt.length(); j++)
+        {
+            if( pt[j] == obj )
+            {
+                pt[j] = FP_NONE;
+                f = 1;
+                break;
+            }
+        }
+    }
+
+    return obj;
+}
+
+int SwapPage()
+{
+    return Random();
 }
 
 void PrintLog(QString log)
@@ -229,6 +293,31 @@ void PrintFatalError(QString s, int pid, int page)
 int main(int argc, char *argv[])
 {
     QCoreApplication a(argc, argv);
+    int index = 0;
+
+    qsrand(time(NULL));
+
+    TaskTable.append(new PCB(1));
+
+    PrintLog("Task Page Serial:");
+
+    for(int i=0; i<TaskTable.count(); i++)
+    {
+        TaskTable[i]->printPageSerial();
+    }
+
+    while( true )
+    {
+        if( TaskTable[index]->running() )
+        {
+            AccessPage(*TaskTable[index]);
+        }
+
+        index = (index + 1) % TaskTable.count();
+
+        cin.get(); //等待键盘的空格输入
+    }
+
 
     return a.exec();
 }
