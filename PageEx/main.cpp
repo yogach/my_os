@@ -2,6 +2,7 @@
 #include <QList>
 #include <iostream>
 #include <ctime>
+#include <QQueue>
 
 using namespace std;
 
@@ -125,11 +126,17 @@ public:
 
 FrameItem FrameTable[FRAME_NUM];  //全局页框表
 QList<PCB*> TaskTable;       //任务列表
+QQueue<int> MoveOut;
 
 int GetFrameItem();          //获取空闲的页框表项
 void AccessPage(PCB& pcb);   //模仿任务访问页面
 int RequestPage(int pid, int page); //请求页框
 int SwapPage();              //交换页框
+void ClearFrameItem(PCB& pcb);
+void ClearFrameItem(int frame);
+int Random();
+int FIFO();
+int LRU();
 void PrintLog(QString log);
 void PrintPageMap(int pid, int page, int frame);
 void PrintFatalError(QString s, int pid, int page);
@@ -226,7 +233,46 @@ int RequestPage(int pid, int page)
     FrameTable[frame].pid = pid;
     FrameTable[frame].pnum = page;
 
+    MoveOut.enqueue(frame); //申请页面成功后 将其加入队列
+
     return frame;
+}
+
+//在一个任务结束后 释放页框表与之有关的东西
+void ClearFrameItem(PCB& pcb)
+{
+    for(int i=0; i<FRAME_NUM; i++)
+    {
+        if( FrameTable[i].pid == pcb.getPID() )
+        {
+            FrameTable[i].pid = FP_NONE;
+            FrameTable[i].pnum = FP_NONE;
+        }
+    }
+
+}
+
+void ClearFrameItem(int frame)
+{
+    //清空页框
+    FrameTable[frame].pid = FP_NONE;
+    FrameTable[frame].pnum = FP_NONE;
+
+    //查找每个任务内的页表中是否有对应页框 如果有清空
+    for(int i=0, f=0; (i<TaskTable.count()) && !f; i++)
+    {
+        PageTable& pt = TaskTable[i]->getPageTable();
+
+        for(int j=0; j<pt.length(); j++)
+        {
+            if( pt[j] == frame )
+            {
+                pt[j] = FP_NONE;
+                f = 1;
+                break;
+            }
+        }
+    }
 }
 
 int Random()
@@ -239,32 +285,28 @@ int Random()
     //实际上选择一个要交换的页框后 需要将数据写回到硬盘
     PrintLog("Write the selected page content back to disk.");
 
-    //清空页框
-    FrameTable[obj].pid = FP_NONE;
-    FrameTable[obj].pnum = FP_NONE;
-
-    //查找每个任务内的页表中是否有对应页框 如果有清空
-    for(int i=0, f=0; (i<TaskTable.count()) && !f; i++)
-    {
-        PageTable& pt = TaskTable[i]->getPageTable();
-
-        for(int j=0; j<pt.length(); j++)
-        {
-            if( pt[j] == obj )
-            {
-                pt[j] = FP_NONE;
-                f = 1;
-                break;
-            }
-        }
-    }
+    ClearFrameItem(obj);
 
     return obj;
 }
 
+int FIFO()
+{
+    int obj = MoveOut.dequeue();
+
+    PrintLog("Select a frame to swap page content out: Frame" + QString::number(obj));
+    PrintLog("Write the selected page content back to disk.");
+
+    ClearFrameItem(obj);
+
+    return obj;
+}
+
+
+
 int SwapPage()
 {
-    return Random();
+    return FIFO();
 }
 
 void PrintLog(QString log)
@@ -298,6 +340,7 @@ int main(int argc, char *argv[])
     qsrand(time(NULL));
 
     TaskTable.append(new PCB(1));
+    TaskTable.append(new PCB(2));
 
     PrintLog("Task Page Serial:");
 
@@ -306,14 +349,34 @@ int main(int argc, char *argv[])
         TaskTable[i]->printPageSerial();
     }
 
+    PrintLog("==== Running ====");
+
     while( true )
     {
-        if( TaskTable[index]->running() )
+        if( TaskTable.count() > 0 )
         {
-            AccessPage(*TaskTable[index]);
+            if( TaskTable[index]->running() )
+            {
+                AccessPage(*TaskTable[index]);
+            }
+            else
+            {
+                PrintLog("Task" + QString::number(TaskTable[index]->getPID()) + " is finished!");
+
+                PCB* pcb = TaskTable[index];
+
+                TaskTable.removeAt(index);
+
+                ClearFrameItem(*pcb);
+
+                delete pcb;
+            }
         }
 
-        index = (index + 1) % TaskTable.count();
+        if( TaskTable.count() > 0 )
+        {
+            index = (index + 1) % TaskTable.count();
+        }
 
         cin.get(); //等待键盘的空格输入
     }
