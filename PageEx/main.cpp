@@ -13,12 +13,14 @@ using namespace std;
 struct FrameItem
 {
     int pid;    // 哪个任务使用了这个页框
-    int pnum;   //
+    int pnum;   // 记录对应任务的哪个页 占用了本页框
+    int ticks;  // 用于记录当前任务的调用次数
 
     FrameItem()
     {
         pid = FP_NONE;
         pnum = FP_NONE;
+        ticks = 0xff;
     }
 };
 
@@ -192,6 +194,8 @@ void AccessPage(PCB& pcb)
             }
 
         }
+
+        FrameTable[pageTable[page]].ticks ++; //访问成功后 对应的访问计数+1
     }
     else
     {
@@ -232,6 +236,7 @@ int RequestPage(int pid, int page)
     //记录使用页框的任务和对应的页表
     FrameTable[frame].pid = pid;
     FrameTable[frame].pnum = page;
+    FrameTable[frame].ticks = 0xff;
 
     MoveOut.enqueue(frame); //申请页面成功后 将其加入队列
 
@@ -292,7 +297,7 @@ int Random()
 
 int FIFO()
 {
-    int obj = MoveOut.dequeue();
+    int obj = MoveOut.dequeue(); //队列头出队列
 
     PrintLog("Select a frame to swap page content out: Frame" + QString::number(obj));
     PrintLog("Write the selected page content back to disk.");
@@ -302,11 +307,36 @@ int FIFO()
     return obj;
 }
 
+int LRU()
+{
+    int obj = 0;
+    int ticks = FrameTable[obj].ticks;
+    QString s = "";
 
+    //找出页框表中 ticks最小的一项
+    for(int i=0; i<FRAME_NUM; i++)
+    {
+        s += "Frame" + QString::number(i) + " : " + QString::number(FrameTable[i].ticks) + "    ";
+
+        if( ticks > FrameTable[i].ticks )
+        {
+            ticks = FrameTable[i].ticks;
+            obj = i;
+        }
+    }
+
+    PrintLog(s);
+    PrintLog("Select the LRU frame page to swap content out: Frame" + QString::number(obj));
+    PrintLog("Write the selected page content back to disk.");
+
+    ClearFrameItem(obj);
+
+    return obj;
+}
 
 int SwapPage()
 {
-    return FIFO();
+    return LRU();
 }
 
 void PrintLog(QString log)
@@ -353,6 +383,12 @@ int main(int argc, char *argv[])
 
     while( true )
     {
+        //周期递减所有页框表项的ticks
+        for(int i=0; i<FRAME_NUM; i++)
+        {
+            FrameTable[i].ticks--;
+        }
+
         if( TaskTable.count() > 0 )
         {
             if( TaskTable[index]->running() )
