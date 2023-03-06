@@ -13,9 +13,10 @@ interface:
 
 [section .gdt]
 ; GDT definition
-;                                 Base,         Limit,         Attribute
-GDT_ENTRY       :     Descriptor    0,            0,           0
-CODE32_DESC     :     Descriptor    0,    Code32SegLen - 1,    DA_C + DA_32
+;                                      Base,         Limit,         Attribute
+GDT_ENTRY            :     Descriptor    0,            0,           0
+CODE32_FLAT_DESC     :     Descriptor    0,          0xFFFFF,        DA_C + DA_32
+CODE32_DESC          :     Descriptor    0,    Code32SegLen - 1,    DA_C + DA_32
 ; GDT end
 
 GdtLen    equ   $ - GDT_ENTRY
@@ -26,8 +27,8 @@ GdtPtr:
           
           
 ; GDT Selector
-
-Code32Selector    equ (0x0001 << 3) + SA_TIG + SA_RPL0
+Code32FlatSelector    equ (0x0001 << 3) + SA_TIG + SA_RPL0
+Code32Selector        equ (0x0002 << 3) + SA_TIG + SA_RPL0
 
 ; end of [section .gdt]
 
@@ -55,8 +56,8 @@ BLMain:
     
     call LoadTarget
     
-    ;cmp dx, 0
-    ;jz output
+    cmp dx, 0
+    jz output
 
     ; 1. load GDT
     lgdt [GdtPtr]
@@ -114,7 +115,7 @@ InitDescItem:
 [section .s32]
 [bits 32]
 CODE32_SEGMENT:    
-    jmp $
+    jmp dword Code32FlatSelector : BaseOfTarget 
 
 Code32SegLen    equ    $ - CODE32_SEGMENT
 

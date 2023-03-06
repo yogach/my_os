@@ -1,6 +1,30 @@
+; PIC-8259A Ports 
+MASTER_ICW1_PORT                        equ     0x20
+MASTER_ICW2_PORT                        equ     0x21
+MASTER_ICW3_PORT                        equ     0x21
+MASTER_ICW4_PORT                        equ     0x21
+MASTER_OCW1_PORT                        equ     0x21
+MASTER_OCW2_PORT                        equ     0x20
+MASTER_OCW3_PORT                        equ     0x20
 
+SLAVE_ICW1_PORT                         equ     0xA0
+SLAVE_ICW2_PORT                         equ     0xA1
+SLAVE_ICW3_PORT                         equ     0xA1
+SLAVE_ICW4_PORT                         equ     0xA1
+SLAVE_OCW1_PORT                         equ     0xA1
+SLAVE_OCW2_PORT                         equ     0xA0
+SLAVE_OCW3_PORT                         equ     0xA0
+MASTER_EOI_PORT                         equ     0x20
+MASTER_IMR_PORT                         equ     0x21
+MASTER_IRR_PORT                         equ     0x20
+MASTER_ISR_PORT                         equ     0x20
+SLAVE_EOI_PORT                          equ     0xA0
+SLAVE_IMR_PORT                          equ     0xA1
+SLAVE_IRR_PORT                          equ     0xA0
+SLAVE_ISR_PORT                          equ     0xA0
 ; Segment Attribute
 DA_32    equ    0x4000  ; 保护模式下32位段
+DA_LIMIT_4K    EQU       0x8000
 DA_DR    equ    0x90    ; 只读数据段
 DA_DRW   equ    0x92    ; 可读写数据段
 DA_DRWA  equ    0x93    ; 已访问可读写数据段
@@ -31,6 +55,11 @@ SA_RPL3    equ    3
 
 SA_TIG    equ    0
 SA_TIL    equ    4
+PG_P    equ    1    ; 页存在属性位
+PG_RWR  equ    0    ; R/W 属性位值, 读/执行
+PG_RWW  equ    2    ; R/W 属性位值, 读/写/执行
+PG_USS  equ    0    ; U/S 属性位值, 系统级
+PG_USU  equ    4    ; U/S 属性位值, 用户级
 
 ; 描述符
 ; usage: Descriptor Base, Limit, Attr
