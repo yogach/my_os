@@ -17,7 +17,7 @@ LOADER_SRC := loader.asm
 COMMON_SRC := common.asm
 BOOT_SRC := boot.asm
 
-KERNEL_SRC := kmain.c
+KERNEL_SRC := kmain.c screen.c
 
 BOOT_OUT := boot
 LOADER_OUT := loader
@@ -29,7 +29,8 @@ EXE := kernel.out
 EXE := $(addprefix $(DIR_EXES)/, $(EXE))
 
 #得到当前目录下的所有.c后缀文件
-SRCS := $(wildcard *.c)
+#SRCS := $(wildcard *.c)
+SRCS := $(KERNEL_SRC)
 
 #将.c后缀替换成.o
 OBJS := $(SRCS:.c=.o)

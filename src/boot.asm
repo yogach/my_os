@@ -1,15 +1,14 @@
 
-BaseOfBoot  equ  0x7c00 ;起始地址
+%include "blfunc.asm"
+%include "common.asm"
 
 org BaseOfBoot 
 
-%include "blfunc.asm"
-
 interface:
     BaseOfStack   equ   BaseOfBoot
-    BaseOfTarget  equ   0x9000      ;加载地址
-    Target db  "LOADER     "        ;加载的文件名
-    TarLen equ ($-Target)           ;文件名长度
+    BaseOfTarget  equ   BaseOfLoader   ;加载地址
+    Target db  "LOADER     "           ;加载的文件名
+    TarLen equ ($-Target)              ;文件名长度
 
 
 BLMain:
