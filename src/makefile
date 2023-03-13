@@ -17,7 +17,7 @@ LOADER_SRC := loader.asm
 COMMON_SRC := common.asm
 BOOT_SRC := boot.asm
 
-KERNEL_SRC := kmain.c screen.c
+KERNEL_SRC := kmain.c screen.c kernel.c global.c
 
 BOOT_OUT := boot
 LOADER_OUT := loader
