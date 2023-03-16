@@ -19,6 +19,7 @@ typedef struct {
     const int          size;
 } GdtInfo;
 
+//任务的寄存器列表
 typedef struct {
     uint gs;
     uint fs;
@@ -50,16 +51,17 @@ typedef struct
     ushort iomb;
 } TSS;
 
+//Task 用于描述一个任务的所有信息
 typedef struct
 {
-    RegValue   rv;
-    Descriptor ldt[3];
-    TSS        tss;
-    ushort     ldtSelector;
-    ushort     tssSelector;
+    RegValue   rv;           //寄存器列表
+    Descriptor ldt[3];       //局部段描述符表
+    TSS        tss;          //任务段 主要功能是用于记录各特权级的栈信息
+    ushort     ldtSelector;  //局部段描述符表选择子
+    ushort     tssSelector;  //任务段选择子
     uint       id;
     char       name[8]; 
-    byte       stack[512];
+    byte       stack[512];   //任务使用的栈
 } Task;
 
 int SetDescValue(Descriptor* pDesc, uint base, uint limit, ushort attr);
