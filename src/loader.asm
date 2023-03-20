@@ -40,6 +40,25 @@ Data32FlatSelector    equ (0x0004 << 3) + SA_TIG + SA_RPL0
 
 ; end of [section .gdt]
 
+;中断向量表 在表中的位置就代表了对应的中断向量
+[section .idt]
+align 32
+[bits 32]
+IDT_ENTRY:
+; IDT definition
+;                        Selector,           Offset,       DCount,    Attribute
+%rep 256 
+              Gate    Code32Selector,    DefaultHandler,   0,         DA_386IGate
+%endrep
+
+IdtLen   equ   $ - IDT_ENTRY
+
+IdtPtr:  
+         dw   IdtLen - 1
+         dd   0
+
+; end of [section .idt]
+
 [section .s16]
 [bits 16]
 BLMain:
@@ -126,15 +145,124 @@ InitDescItem:
 ; 填充共享内存区数据 
 StoreGlobal:
     mov dword [RunTaskEntry], RunTask
+    mov dword [InitInterruptEntry], InitInterrupt
+    mov dword [EnableTimerEntry], EnableTimer
+    mov dword [SendEOIEntry], SendEOI
 
     mov eax, dword [GdtPtr + 2]
     mov dword [GdtEntry], eax
     
     mov dword [GdtSize], GdtLen / 8
     
+    mov eax, dword [IdtPtr + 2]
+    mov dword [IdtEntry], eax
+    
+    mov dword [IdtSize], GdtLen / 8    
+    
     ret
 
-;代码段的意义？
+[section .sfunc]
+[bits 32]
+;
+;
+Delay:
+    %rep 5
+    nop
+    %endrep
+    ret
+
+;
+;
+Init8259A:
+    push ax
+    
+    ; master
+    ; ICW1
+    mov al, 00010001B
+    out MASTER_ICW1_PORT, al
+    
+    call Delay
+    
+    ;挺奇怪的 对应端口的值都一样 是怎么区分出来是ICW2还是其他
+    ; ICW2
+    mov al, 0x20
+    out MASTER_ICW2_PORT, al
+    
+    call Delay
+    
+    ; ICW3
+    mov al, 00000100B
+    out MASTER_ICW3_PORT, al
+    
+    call Delay
+    
+    ; ICW4
+    mov al, 00010001B
+    out MASTER_ICW4_PORT, al
+    
+    call Delay
+    
+    ; slave
+    ; ICW1
+    mov al, 00010001B
+    out SLAVE_ICW1_PORT, al
+    
+    call Delay
+    
+    ; ICW2
+    mov al, 0x28   ; 设置8259A 起始中断号
+    out SLAVE_ICW2_PORT, al
+    
+    call Delay
+    
+    ; ICW3
+    mov al, 00000010B 
+    out SLAVE_ICW3_PORT, al
+    
+    call Delay
+    
+    ; ICW4
+    mov al, 00000001B
+    out SLAVE_ICW4_PORT, al
+    
+    call Delay
+    
+    pop ax
+    
+    ret        
+
+; 写中断屏蔽寄存器
+; al --> IMR register value
+; dx --> 8259A port
+WriteIMR:
+    out dx, al
+    call Delay
+    ret
+
+; 读中断屏蔽寄存器    
+; dx --> 8259A
+; return:
+;     ax --> IMR register value   
+ReadIMR:
+    in al, dx
+    call Delay
+    ret
+    
+; 清除中断标志
+; dx --> 8259A port
+WriteEOI:
+   push ax
+   
+   mov al, 0x20
+   out dx, al
+   
+   call Delay
+   
+   pop ax
+   
+   ret    
+
+;段的意义：加载执行时，每个段被加载到不同的地址
 [section .gfunc]
 [bits 32]
 ;
@@ -160,6 +288,76 @@ RunTask:
     add esp, 4 ; mov esp, &(pt->rv.eip)
     
     iret       ; 调用iret的同时 会将 eip cs elags esp ss 寄存器出栈 用于恢复现场
+
+;
+;
+EnableTimer:
+    push ax
+    push dx
+    
+    ;给对应的显存设置初始值
+    mov ah, 0x0c
+    mov al, '0'
+    mov [gs:((80 * 14 + 36) * 2)], ax    
+    
+    mov dx, MASTER_IMR_PORT
+    
+    call ReadIMR
+    
+    and ax, 0xFE
+    
+    call WriteIMR
+    
+    pop dx
+    pop ax
+    
+    ret
+
+;
+; 使能中断
+InitInterrupt:
+    push ebp
+    mov ebp, esp
+
+    push ax
+    push dx
+    
+    call Init8259A
+    
+    sti ; 打开cpu中断
+    
+    ;屏蔽主从 8259A 中断
+    mov ax, 0xFF
+    mov dx, MASTER_IMR_PORT
+    
+    call WriteIMR
+    
+    mov ax, 0xFF
+    mov dx, SLAVE_IMR_PORT
+    
+    call WriteIMR
+    
+    pop ax
+    pop dx
+    
+    leave
+    
+    ret
+   
+; void SendEOI(uint port);
+;    port ==> 8259A port
+SendEOI:
+   push ebp 
+   mov ebp, esp
+   
+   mov edx, [ebp + 8]
+   
+   ;写入OCW2 手动清除ISR中优先级最高的位 各引脚优先级固定
+   mov al, 0x20
+   out dx, al
+   
+   leave
+   ret       
     
 [section .s32]
 [bits 32]
@@ -178,6 +376,13 @@ CODE32_SEGMENT:
     
     ;跳转到内核入口执行
     jmp dword Code32FlatSelector : BaseOfTarget
+
+;
+;
+DefaultHandlerFunc:
+    iret
+    
+DefaultHandler    equ    DefaultHandlerFunc - $$
 
 Code32SegLen    equ    $ - CODE32_SEGMENT
 

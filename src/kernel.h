@@ -14,10 +14,24 @@ typedef struct{
     byte base3;    
 }Descriptor;
 
+typedef struct{
+    ushort offset1;
+    ushort selector;
+    byte dcount;
+    byte attr;
+    ushort offset2;    
+}Gate;
+
+
 typedef struct {
     Descriptor * const entry;
     const int          size;
 } GdtInfo;
+
+typedef struct {
+    Gate * const entry;
+    const int          size;
+} IdtInfo;
 
 //任务的寄存器列表
 typedef struct {
@@ -66,5 +80,8 @@ typedef struct
 
 int SetDescValue(Descriptor* pDesc, uint base, uint limit, ushort attr);
 int GetDescValue(Descriptor* pDesc, uint* pBase, uint* pLimit, ushort* pAttr);
+int SetIntHandler(Gate* pGate, uint ifunc);
+int GetIntHandler(Gate* pGate, uint* pIFunc);
+
 
 #endif

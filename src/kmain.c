@@ -3,6 +3,10 @@
 #include "global.h"
 
 Task p = {0};
+void (* const InitInterrupt)() = NULL;
+void (* const EnableTimer)() = NULL;
+void (* const SendEOI)() = NULL;
+
 
 void Delay(int n)
 {
@@ -38,6 +42,34 @@ void TaskA()
         i = (i + 1) % 26;
         Delay(1);
     }
+}
+
+void TimerHandler()
+{
+    static uint i = 0;
+    
+    i = (i + 1) % 10;
+    
+    SetPrintPos(0, 13);
+        
+    PrintString("Timer: ");
+    
+    if( i == 0 )
+    {
+        static uint j = 0;
+        
+        SetPrintPos(0, 13);
+        
+        PrintString("Timer: ");
+        
+        SetPrintPos(8, 13);
+        
+        PrintIntDec(j++);
+    }
+    
+    SendEOI(MASTER_EOI_PORT); //发送中断结束标志 
+    
+    asm volatile("leave\n""iret\n"); 
 }
 
 void KMain()
@@ -80,10 +112,10 @@ void KMain()
     
     p.rv.esp = (uint)p.stack + sizeof(p.stack); //esp 栈顶指针寄存器 指向预定义的栈顶
     p.rv.eip = (uint)TaskA;         // eip 下一条指令地址指向任务入口
-    p.rv.eflags = 0x3002;     //IOPL = 3 if = 0
+    p.rv.eflags = 0x3202;     //IOPL = 3 if = 0
     
     p.tss.ss0 = GDT_DATA32_FLAT_SELECTOR; //设置0特权级的栈
-    p.tss.esp0 = 0;
+    p.tss.esp0 = 0x9000;
     p.tss.iomb = sizeof(p.tss);
     
     //设置局部段描述符
@@ -104,9 +136,12 @@ void KMain()
     PrintString("    Stack Top: ");
     PrintIntHex((uint)p.stack + sizeof(p.stack));
     
+    SetIntHandler(gIdtInfo.entry + 0x20, (uint)TimerHandler);  //设置中断处理函数
+    
+    InitInterrupt();
+    
+    EnableTimer();
+    
     //启动任务
-    RunTask(&p);
- 
-    
-    
+    RunTask(&p);    
 }

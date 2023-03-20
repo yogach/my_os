@@ -4,8 +4,12 @@
 global _start
 
 extern gGdtInfo
+extern gIdtInfo
 extern KMain
 extern RunTask
+extern InitInterrupt
+extern EnableTimer
+extern SendEOI
 extern ClearScreen
 
 [section .text]
@@ -31,9 +35,23 @@ InitGlobal:
      mov eax, dword [GdtSize]
      mov [gGdtInfo + 4], eax
      
+     mov eax, dword [IdtEntry]
+     mov [gIdtInfo], eax
+     mov eax, dword [IdtSize]
+     mov [gIdtInfo + 4], eax     
+     
      mov eax, dword [RunTaskEntry]
      mov dword [RunTask], eax  
+
+     mov eax, dword [InitInterruptEntry]
+     mov dword [InitInterrupt], eax
+
+     mov eax, dword [EnableTimerEntry]
+     mov dword [EnableTimer], eax
      
+     mov eax, dword [SendEOIEntry]
+     mov dword [SendEOI], eax
+                    
      leave  ;关闭栈帧
      
      ret     
