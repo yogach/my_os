@@ -1,16 +1,58 @@
 
 %include "common.asm"
 
+; 本文件定义 给外部使用
 global _start
+global TimerHandlerEntry
 
+
+; 引用外部的变量
 extern gGdtInfo
 extern gIdtInfo
+extern gCTaskAddr
 extern KMain
 extern RunTask
 extern InitInterrupt
 extern EnableTimer
 extern SendEOI
 extern ClearScreen
+extern TimerHandler
+
+;定义宏 0 代表不需要参数
+%macro BeginISR  0
+   sub esp, 4  ;跳过RegValue的raddr
+   
+   ; 通用寄存器压栈 保存现场
+   pushad      
+   
+   push ds
+   push es
+   push fs
+   push gs
+   
+   mov dx, ss   
+   mov ds, dx
+   mov es, dx
+   
+   mov esp, BaseOfLoader   ;完成保存现场之后重新设置内核栈
+%endmacro
+
+%macro EndISR  0
+   mov esp, [gCTaskAddr]   ; 将esp指向Task结构的起始位置
+   
+   ;寄存器出栈 恢复现场
+   pop gs
+   pop fs
+   pop es
+   pop ds
+   
+   popad
+   
+   add esp, 4 ;跳过RegValue的raddr
+   
+   iret
+   
+%endmacro
 
 [section .text]
 [bits 32]
@@ -54,4 +96,12 @@ InitGlobal:
                     
      leave  ;关闭栈帧
      
-     ret     
+     ret
+
+;
+;
+TimerHandlerEntry:
+BeginISR
+    call TimerHandler
+EndISR
+     

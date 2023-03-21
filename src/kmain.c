@@ -2,11 +2,12 @@
 #include "screen.h"
 #include "global.h"
 
+Task* gCTaskAddr = NULL;
 Task p = {0};
 void (* const InitInterrupt)() = NULL;
 void (* const EnableTimer)() = NULL;
 void (* const SendEOI)() = NULL;
-
+void TimerHandlerEntry();
 
 void Delay(int n)
 {
@@ -67,9 +68,7 @@ void TimerHandler()
         PrintIntDec(j++);
     }
     
-    SendEOI(MASTER_EOI_PORT); //发送中断结束标志 
-    
-    asm volatile("leave\n""iret\n"); 
+    SendEOI(MASTER_EOI_PORT); //发送中断结束标志
 }
 
 void KMain()
@@ -114,8 +113,8 @@ void KMain()
     p.rv.eip = (uint)TaskA;         // eip 下一条指令地址指向任务入口
     p.rv.eflags = 0x3202;     //IOPL = 3 if = 0
     
-    p.tss.ss0 = GDT_DATA32_FLAT_SELECTOR; //设置0特权级的栈
-    p.tss.esp0 = 0x9000;
+    p.tss.ss0 = GDT_DATA32_FLAT_SELECTOR;    //设置0特权级的栈
+    p.tss.esp0 = (uint)&p.rv + sizeof(p.rv); //esp指针指向 Task结构体RegValue的末尾 目的是在调用中断时自动完成ss esp eflags cs的压栈 
     p.tss.iomb = sizeof(p.tss);
     
     //设置局部段描述符
@@ -129,18 +128,15 @@ void KMain()
     
     //设置全局段描述符
     SetDescValue(&gGdtInfo.entry[GDT_TASK_LDT_INDEX], (uint)&p.ldt, sizeof(p.ldt)-1, DA_LDT + DA_DPL0);
-    SetDescValue(&gGdtInfo.entry[GDT_TASK_TSS_INDEX], (uint)&p.tss, sizeof(p.tss)-1, DA_386TSS + DA_DPL0);    
+    SetDescValue(&gGdtInfo.entry[GDT_TASK_TSS_INDEX], (uint)&p.tss, sizeof(p.tss)-1, DA_386TSS + DA_DPL0);
     
-    PrintString("Stack Bottom: ");
-    PrintIntHex((uint)p.stack);
-    PrintString("    Stack Top: ");
-    PrintIntHex((uint)p.stack + sizeof(p.stack));
-    
-    SetIntHandler(gIdtInfo.entry + 0x20, (uint)TimerHandler);  //设置中断处理函数
+    SetIntHandler(gIdtInfo.entry + 0x20, (uint)TimerHandlerEntry);  //设置中断处理函数
     
     InitInterrupt();
     
     EnableTimer();
+    
+    gCTaskAddr = &p;
     
     //启动任务
     RunTask(&p);    
