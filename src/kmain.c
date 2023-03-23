@@ -4,7 +4,7 @@
 
 void (* const InitInterrupt)() = NULL;
 void (* const EnableTimer)() = NULL;
-void (* const SendEOI)(int port) = NULL;
+void (* const SendEOI)(uint port) = NULL;
 void TimerHandlerEntry();
 
 volatile Task* gCTaskAddr = NULL; //使用volatile 防止编译器自动优化此变量 造成指针的值没有变化
@@ -105,7 +105,7 @@ void ChangeTask()
    //PrintIntHex(gCTaskAddr);
    
    gTSS.ss0 = GDT_DATA32_FLAT_SELECTOR;    //设置0特权级的栈
-   gTSS.esp0 = (uint)&gCTaskAddr->rv.gs + sizeof(RegValue); //esp指针指向 Task结构体RegValue的末尾 目的是在调用中断时自动完成ss esp eflags cs的压栈 
+   gTSS.esp0 = (uint)&gCTaskAddr->rv + sizeof(gCTaskAddr->rv); //esp指针指向 Task结构体RegValue的末尾 目的是在调用中断时自动完成ss esp eflags cs的压栈 
    
    SetDescValue(&gGdtInfo.entry[GDT_TASK_LDT_INDEX], (uint)&gCTaskAddr->ldt, sizeof(gCTaskAddr->ldt)-1, DA_LDT + DA_DPL0); //重新设置gdt内的ldt 切换到对应任务的ldt
    
@@ -116,7 +116,7 @@ void TimerHandler()
 {
     static uint i = 0;
     
-    i = (i + 1) % 10;  
+    i = (i + 1) % 5;  
     if( i == 0 )
     {
        ChangeTask();
@@ -128,28 +128,22 @@ void TimerHandler()
 void KMain()
 {
     int n = PrintString("D.T.OS\n");
-    uint base = 0;
-    uint limit = 0;
-    ushort attr = 0;
-    int i = 0;
     
     PrintString("GDT Entry: ");
     PrintIntHex((uint)gGdtInfo.entry);
     PrintChar('\n');
     
-    for(i=0; i<gGdtInfo.size; i++)
-    {
-        GetDescValue(gGdtInfo.entry + i, &base, &limit, &attr);
-       
-        PrintIntHex(base);
-        PrintString("    ");
+    PrintString("GDT Size: ");
+    PrintIntDec((uint)gGdtInfo.size);
+    PrintChar('\n');
     
-        PrintIntHex(limit);
-        PrintString("    ");
+    PrintString("IDT Entry: ");
+    PrintIntHex((uint)gIdtInfo.entry);
+    PrintChar('\n');
     
-        PrintIntHex(attr);
-        PrintChar('\n');       
-    }
+    PrintString("IDT Size: ");
+    PrintIntDec((uint)gIdtInfo.size);
+    PrintChar('\n');
     
     PrintString("RunTask: ");
     PrintIntHex((uint)RunTask);
@@ -159,8 +153,9 @@ void KMain()
     PrintIntHex((uint)LoadTask);
     PrintChar('\n');
     
-    InitTask(&p, TaskA);
+    //这里有差别 初始化的顺序 会实际影响到gTSS的值 首个启动的任务必须时最后一个初始化的
     InitTask(&t, TaskB);
+    InitTask(&p, TaskA);
     
     SetIntHandler(gIdtInfo.entry + 0x20, (uint)TimerHandlerEntry);  //设置中断处理函数
     
@@ -168,7 +163,7 @@ void KMain()
     
     EnableTimer();
     
-    gCTaskAddr = &p;
+    gCTaskAddr = &p;  //第一个任务是TaskB的时候可以实现切换 差距在初始化顺序
     
     //启动任务
     RunTask(gCTaskAddr);    
