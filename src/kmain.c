@@ -2,12 +2,47 @@
 #include "screen.h"
 #include "global.h"
 
-Task* gCTaskAddr = NULL;
-Task p = {0};
 void (* const InitInterrupt)() = NULL;
 void (* const EnableTimer)() = NULL;
-void (* const SendEOI)() = NULL;
+void (* const SendEOI)(int port) = NULL;
 void TimerHandlerEntry();
+
+volatile Task* gCTaskAddr = NULL; //使用volatile 防止编译器自动优化此变量 造成指针的值没有变化
+Task p = {0};
+Task t = {0};
+TSS gTSS = {0};
+
+void InitTask(Task* pt, void(*entry)())
+{
+    //设置任务相关寄存器
+    pt->rv.cs = LDT_CODE32_SELECTOR;
+    pt->rv.gs = LDT_VIDEO_SELECTOR;
+    pt->rv.ds = LDT_DATA32_SELECTOR;
+    pt->rv.es = LDT_DATA32_SELECTOR;
+    pt->rv.fs = LDT_DATA32_SELECTOR;
+    pt->rv.ss = LDT_DATA32_SELECTOR;   //ss-栈段寄存器
+    
+    pt->rv.esp = (uint)pt->stack + sizeof(pt->stack); //esp 栈顶指针寄存器 指向预定义的栈顶
+    pt->rv.eip = (uint)entry;         // eip 下一条指令地址指向任务入口
+    pt->rv.eflags = 0x3202;     //IOPL = 3 if = 1
+    
+    gTSS.ss0 = GDT_DATA32_FLAT_SELECTOR;    //设置0特权级的栈
+    gTSS.esp0 = (uint)&pt->rv + sizeof(pt->rv); //esp指针指向 Task结构体RegValue的末尾 目的是在调用中断时自动完成ss esp eflags cs的压栈 
+    gTSS.iomb = sizeof(TSS);
+    
+    //设置局部段描述符
+    SetDescValue(pt->ldt + LDT_VIDEO_INDEX, 0xB8000, 0x07FFF, DA_DRWA + DA_32 + DA_DPL3);
+    SetDescValue(pt->ldt + LDT_CODE32_INDEX, 0x00,    0xFFFFF, DA_C + DA_32 + DA_DPL3);
+    SetDescValue(pt->ldt + LDT_DATA32_INDEX, 0x00,    0xFFFFF, DA_DRW + DA_32 + DA_DPL3);
+    
+    //设置选择子
+    pt->ldtSelector = GDT_TASK_LDT_SELECTOR;
+    pt->tssSelector = GDT_TASK_TSS_SELECTOR;
+    
+    //设置全局段描述符
+    SetDescValue(&gGdtInfo.entry[GDT_TASK_LDT_INDEX], (uint)&pt->ldt, sizeof(pt->ldt)-1, DA_LDT + DA_DPL0);
+    SetDescValue(&gGdtInfo.entry[GDT_TASK_TSS_INDEX], (uint)&gTSS, sizeof(gTSS)-1, DA_386TSS + DA_DPL0);        
+}
 
 void Delay(int n)
 {
@@ -45,27 +80,46 @@ void TaskA()
     }
 }
 
+void TaskB()
+{
+    int i = 0;
+    
+    SetPrintPos(0, 13);
+    
+    PrintString("Task B: ");
+    
+    while(1)
+    {
+        SetPrintPos(8, 13);
+        PrintChar('0' + i);
+        i = (i + 1) % 10;
+        Delay(1);
+    }
+}
+
+void ChangeTask()
+{
+   gCTaskAddr = (gCTaskAddr == &p) ? &t : &p;
+ 
+   //SetPrintPos(0, 15);  
+   //PrintIntHex(gCTaskAddr);
+   
+   gTSS.ss0 = GDT_DATA32_FLAT_SELECTOR;    //设置0特权级的栈
+   gTSS.esp0 = (uint)&gCTaskAddr->rv.gs + sizeof(RegValue); //esp指针指向 Task结构体RegValue的末尾 目的是在调用中断时自动完成ss esp eflags cs的压栈 
+   
+   SetDescValue(&gGdtInfo.entry[GDT_TASK_LDT_INDEX], (uint)&gCTaskAddr->ldt, sizeof(gCTaskAddr->ldt)-1, DA_LDT + DA_DPL0); //重新设置gdt内的ldt 切换到对应任务的ldt
+   
+   LoadTask(gCTaskAddr);   
+}
+
 void TimerHandler()
 {
     static uint i = 0;
     
-    i = (i + 1) % 10;
-    
-    SetPrintPos(0, 13);
-        
-    PrintString("Timer: ");
-    
+    i = (i + 1) % 10;  
     if( i == 0 )
     {
-        static uint j = 0;
-        
-        SetPrintPos(0, 13);
-        
-        PrintString("Timer: ");
-        
-        SetPrintPos(8, 13);
-        
-        PrintIntDec(j++);
+       ChangeTask();
     }
     
     SendEOI(MASTER_EOI_PORT); //发送中断结束标志
@@ -101,34 +155,12 @@ void KMain()
     PrintIntHex((uint)RunTask);
     PrintChar('\n');
     
-    //设置任务相关寄存器
-    p.rv.cs = LDT_CODE32_SELECTOR;
-    p.rv.gs = LDT_VIDEO_SELECTOR;
-    p.rv.ds = LDT_DATA32_SELECTOR;
-    p.rv.es = LDT_DATA32_SELECTOR;
-    p.rv.fs = LDT_DATA32_SELECTOR;
-    p.rv.ss = LDT_DATA32_SELECTOR;   //ss-栈段寄存器
+    PrintString("LoadTask: ");
+    PrintIntHex((uint)LoadTask);
+    PrintChar('\n');
     
-    p.rv.esp = (uint)p.stack + sizeof(p.stack); //esp 栈顶指针寄存器 指向预定义的栈顶
-    p.rv.eip = (uint)TaskA;         // eip 下一条指令地址指向任务入口
-    p.rv.eflags = 0x3202;     //IOPL = 3 if = 0
-    
-    p.tss.ss0 = GDT_DATA32_FLAT_SELECTOR;    //设置0特权级的栈
-    p.tss.esp0 = (uint)&p.rv + sizeof(p.rv); //esp指针指向 Task结构体RegValue的末尾 目的是在调用中断时自动完成ss esp eflags cs的压栈 
-    p.tss.iomb = sizeof(p.tss);
-    
-    //设置局部段描述符
-    SetDescValue(p.ldt + LDT_VIDEO_INDEX, 0xB8000, 0x07FFF, DA_DRWA + DA_32 + DA_DPL3);
-    SetDescValue(p.ldt + LDT_CODE32_INDEX, 0x00,    0xFFFFF, DA_C + DA_32 + DA_DPL3);
-    SetDescValue(p.ldt + LDT_DATA32_INDEX, 0x00,    0xFFFFF, DA_DRW + DA_32 + DA_DPL3);
-    
-    //设置选择子
-    p.ldtSelector = GDT_TASK_LDT_SELECTOR;
-    p.tssSelector = GDT_TASK_TSS_SELECTOR;
-    
-    //设置全局段描述符
-    SetDescValue(&gGdtInfo.entry[GDT_TASK_LDT_INDEX], (uint)&p.ldt, sizeof(p.ldt)-1, DA_LDT + DA_DPL0);
-    SetDescValue(&gGdtInfo.entry[GDT_TASK_TSS_INDEX], (uint)&p.tss, sizeof(p.tss)-1, DA_386TSS + DA_DPL0);
+    InitTask(&p, TaskA);
+    InitTask(&t, TaskB);
     
     SetIntHandler(gIdtInfo.entry + 0x20, (uint)TimerHandlerEntry);  //设置中断处理函数
     
@@ -139,5 +171,5 @@ void KMain()
     gCTaskAddr = &p;
     
     //启动任务
-    RunTask(&p);    
+    RunTask(gCTaskAddr);    
 }

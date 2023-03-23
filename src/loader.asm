@@ -48,7 +48,7 @@ IDT_ENTRY:
 ; IDT definition
 ;                        Selector,           Offset,       DCount,    Attribute
 %rep 256 
-              Gate    Code32Selector,    DefaultHandler,   0,         DA_386IGate
+              Gate    Code32Selector,    DefaultHandler,   0,         DA_386IGate + DA_DPL0
 %endrep
 
 IdtLen   equ   $ - IDT_ENTRY
@@ -81,6 +81,13 @@ BLMain:
     add eax, GDT_ENTRY
     mov dword [GdtPtr + 2], eax  ;计算gdt的地址
     
+    ; initialize Interrupt Descriptor table pointer struct
+    mov eax, 0
+    mov ax, ds
+    shl eax, 4
+    add eax, IDT_ENTRY
+    mov dword [IdtPtr + 2], eax    
+    
     call LoadTarget
     
     cmp dx, 0
@@ -92,8 +99,11 @@ BLMain:
     lgdt [GdtPtr]
     
     ; 2. close interrupt
+    ;    load IDT    
     ;    set IOPL to 3
     cli 
+    
+    lidt [IdtPtr]
     
     pushf
     pop eax
@@ -148,6 +158,7 @@ StoreGlobal:
     mov dword [InitInterruptEntry], InitInterrupt
     mov dword [EnableTimerEntry], EnableTimer
     mov dword [SendEOIEntry], SendEOI
+    mov dword [LoadTaskEntry], LoadTask
 
     mov eax, dword [GdtPtr + 2]
     mov dword [GdtEntry], eax
@@ -157,7 +168,7 @@ StoreGlobal:
     mov eax, dword [IdtPtr + 2]
     mov dword [IdtEntry], eax
     
-    mov dword [IdtSize], GdtLen / 8    
+    mov dword [IdtSize], IdtLen / 8    
     
     ret
 
@@ -244,7 +255,7 @@ WriteIMR:
 ; return:
 ;     ax --> IMR register value   
 ReadIMR:
-    in al, dx
+    in ax, dx
     call Delay
     ret
     
@@ -289,16 +300,24 @@ RunTask:
     
     iret       ; 调用iret的同时 会将 eip cs elags esp ss 寄存器出栈 用于恢复现场
 
+; void LoadTask(Task* pt);
+;
+LoadTask:
+    push ebp
+    mov ebp, esp
+    
+    mov eax, [ebp + 8] ;获取c函数参数
+    
+    lldt word [eax + 200] ;加载局部段描述符
+    
+    leave
+    ret
+
 ;
 ;
 EnableTimer:
     push ax
-    push dx
-    
-    ;给对应的显存设置初始值
-    mov ah, 0x0c
-    mov al, '0'
-    mov [gs:((80 * 14 + 36) * 2)], ax    
+    push dx  
     
     mov dx, MASTER_IMR_PORT
     
@@ -357,6 +376,8 @@ SendEOI:
    mov al, 0x20
    out dx, al
    
+   call Delay
+   
    leave
    ret       
     
@@ -387,6 +408,6 @@ DefaultHandler    equ    DefaultHandlerFunc - $$
 
 Code32SegLen    equ    $ - CODE32_SEGMENT
 
-ErrStr db "No LOADER ..."
+ErrStr db  "No KERNEL"
 ErrLen equ ($-ErrStr) ;$代表当前行地址 结果是得到MsgStr的长度
 Buffer db 0

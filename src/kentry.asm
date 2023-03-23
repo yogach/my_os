@@ -12,6 +12,7 @@ extern gIdtInfo
 extern gCTaskAddr
 extern KMain
 extern RunTask
+extern LoadTask
 extern InitInterrupt
 extern EnableTimer
 extern SendEOI
@@ -93,6 +94,9 @@ InitGlobal:
      
      mov eax, dword [SendEOIEntry]
      mov dword [SendEOI], eax
+     
+     mov eax, dword [LoadTaskEntry]
+     mov dword [LoadTask], eax     
                     
      leave  ;关闭栈帧
      
