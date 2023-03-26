@@ -286,8 +286,8 @@ RunTask:
     ;c函数调用在传递参数的时候 高地址数据也是保存在栈的高地址上的
     mov esp, [esp + 8] ; mov esp , &(pt->rv.gs) 
     
-    lldt word [esp + 200] ; 加载局部段描述符表
-    ltr word [esp + 202]  ; 加载tss
+    lldt word [esp + 96] ; 加载局部段描述符表
+    ltr word [esp + 98]  ; 加载tss
     
     pop gs
     pop fs
@@ -308,7 +308,7 @@ LoadTask:
     
     mov eax, [ebp + 8] ;获取c函数参数
     
-    lldt word [eax + 200] ;加载局部段描述符
+    lldt word [eax + 96] ;加载局部段描述符
     
     leave
     ret
