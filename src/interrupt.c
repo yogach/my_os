@@ -12,7 +12,7 @@ void IntModInit()
     
    InitInterrupt();
     
-   EnableTimer();   
+   //EnableTimer();   
 }
 
 int SetIntHandler(Gate* pGate, uint ifunc)

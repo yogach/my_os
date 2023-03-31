@@ -2,6 +2,7 @@
 #define TASK_H
 
 #include "kernel.h"
+#include "queue.h"
 
 //任务的寄存器列表
 typedef struct {
@@ -47,6 +48,12 @@ typedef struct
     char       name[8]; 
     byte       stack[512];   //任务使用的栈
 } Task;
+
+typedef struct
+{
+    QueueNode head;
+    Task task;
+} TaskNode;
 
 extern void (* const RunTask)(volatile Task* pt);
 extern void (* const LoadTask)(volatile Task* pt);

@@ -22,17 +22,10 @@ void KMain()
     PrintIntDec((uint)gIdtInfo.size);
     PrintChar('\n');
     
-    PrintString("RunTask: ");
-    PrintIntHex((uint)RunTask);
-    PrintChar('\n');
-    
-    PrintString("LoadTask: ");
-    PrintIntHex((uint)LoadTask);
-    PrintChar('\n');
-    
-    IntModInit();
     
     TaskModInit();
     
-    LaunchTask();    
+    IntModInit(); //初始化中断    
+    
+    LaunchTask(); //开始执行任务
 }

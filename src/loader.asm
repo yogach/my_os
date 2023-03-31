@@ -297,6 +297,19 @@ RunTask:
     popad      ; pop edi, esi, ebp, esp, ebx, edx, ecx, eax
     
     add esp, 4 ; mov esp, &(pt->rv.eip)
+
+    ;将使能时钟中断的地方放在这里
+    mov dx, MASTER_IMR_PORT
+
+    in ax, dx
+
+    %rep 5
+    nop
+    %endrep
+
+    and ax, 0xfe
+
+    out dx, al
     
     iret       ; 调用iret的同时 会将 eip cs elags esp ss 寄存器出栈 用于恢复现场
 
@@ -318,13 +331,16 @@ LoadTask:
 EnableTimer:
     push ax
     push dx  
-    
+
+    ;读主片IMR
     mov dx, MASTER_IMR_PORT
     
     call ReadIMR
-    
+
+    ;使能时钟中断 
     and ax, 0xFE
-    
+
+    ;写回到主片内
     call WriteIMR
     
     pop dx
