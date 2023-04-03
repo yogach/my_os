@@ -282,12 +282,12 @@ RunTask:
     push ebp 
     mov ebp, esp
     
-    ;移动到参数的起始位置 原先的esp保存的是old ebp [esp + 4]是返回地址
-    ;c函数调用在传递参数的时候 高地址数据也是保存在栈的高地址上的
+    ; 移动到参数的起始位置 原先的esp保存的是old ebp [esp + 4]是返回地址
+    ; c函数调用在传递参数的时候 高地址数据也是保存在栈的高地址上的
     mov esp, [esp + 8] ; mov esp , &(pt->rv.gs) 
-    
-    lldt word [esp + 96] ; 加载局部段描述符表
-    ltr word [esp + 98]  ; 加载tss
+
+    lldt word [esp + 96] ; 加载局部段描述符表选择子
+    ltr word [esp + 98]  ; 加载tss选择子
     
     pop gs
     pop fs
@@ -298,11 +298,12 @@ RunTask:
     
     add esp, 4 ; mov esp, &(pt->rv.eip)
 
-    ;将使能时钟中断的地方放在这里
+    ; 将使能时钟中断的地方放在这里
     mov dx, MASTER_IMR_PORT
 
     in ax, dx
 
+    ; 延时一段时间
     %rep 5
     nop
     %endrep

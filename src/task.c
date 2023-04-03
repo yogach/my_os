@@ -11,6 +11,23 @@ static TaskNode gTaskBuff[MAX_RUNNING_TASK] = {0};
 static Queue gRunningTask = {0};
 static TSS gTSS = {0};
 
+static void TaskEntry()
+{
+	  if( gCTaskAddr )
+	  {
+			gCTaskAddr->tmain();  //调用
+	  }
+
+    //调用0x80中断
+		// to destory current task here
+		asm volatile(
+		   "movw $0, %ax \n"
+			 "int $0x80 \n"	
+		);
+
+		while(1); // TODO: schedule next task to run
+}
+
 void TaskA()
 {
     int i = 0;
@@ -19,13 +36,14 @@ void TaskA()
     
     PrintString(__FUNCTION__);
     
-    while(1)
+    while( i < 5 )
     {
         SetPrintPos(8, 12);
         PrintChar('A' + i);
         i = (i + 1) % 26;
         Delay(1);
     }
+    SetPrintPos(8, 12);
 }
 
 void TaskB()
@@ -90,10 +108,11 @@ static void InitTask(Task* pt, void(*entry)())
     pt->rv.fs = LDT_DATA32_SELECTOR;
     pt->rv.ss = LDT_DATA32_SELECTOR;   //ss-栈段寄存器
     
-    pt->rv.esp = (uint)pt->stack + sizeof(pt->stack); //esp 栈顶指针寄存器 指向预定义的栈顶
-    pt->rv.eip = (uint)entry;                         // eip 下一条指令地址指向任务入口
-    pt->rv.eflags = 0x3202;                           //IOPL = 3 if = 1  
-    
+    pt->rv.esp = (uint)pt->stack + sizeof(pt->stack); // esp 栈顶指针寄存器 指向预定义的栈顶
+    pt->rv.eip = (uint)TaskEntry;                     // eip 下一条指令地址指向任务入口
+    pt->rv.eflags = 0x3202;                           // IOPL = 3 if = 1  
+    pt->tmain = entry;
+		
     //设置局部段描述符
     SetDescValue(AddrOff(pt->ldt, LDT_VIDEO_INDEX),  0xB8000, 0x07FFF, DA_DRWA + DA_32 + DA_DPL3);
     SetDescValue(AddrOff(pt->ldt, LDT_CODE32_INDEX), 0x00,    0xFFFFF, DA_C + DA_32 + DA_DPL3);
@@ -120,11 +139,11 @@ void TaskModInit()
     //设置全局段描述符内TSS的值
     SetDescValue(AddrOff(gGdtInfo.entry, GDT_TASK_TSS_INDEX), (uint)&gTSS, sizeof(gTSS)-1, DA_386TSS + DA_DPL0); 
     
-    InitTask(&((TaskNode*)AddrOff(gTaskBuff, 0))->task, TaskA);
-    
-    InitTask(&((TaskNode*)AddrOff(gTaskBuff, 1))->task, TaskB);
-    InitTask(&((TaskNode*)AddrOff(gTaskBuff, 2))->task, TaskC);
-    InitTask(&((TaskNode*)AddrOff(gTaskBuff, 3))->task, TaskD);
+    InitTask((&((TaskNode*)AddrOff(gTaskBuff, 0))->task), TaskA);
+    InitTask((&((TaskNode*)AddrOff(gTaskBuff, 1))->task), TaskB);
+    InitTask((&((TaskNode*)AddrOff(gTaskBuff, 2))->task), TaskC);
+    InitTask((&((TaskNode*)AddrOff(gTaskBuff, 3))->task), TaskD);
+
     
     Queue_Init(&gRunningTask);
     
@@ -156,3 +175,9 @@ void Schedule()
    
    LoadTask(gCTaskAddr);   
 }
+
+void KillTask()
+{
+    PrintString(__FUNCTION__);  // destroy current task
+}
+

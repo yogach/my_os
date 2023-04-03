@@ -4,7 +4,7 @@
 ; 本文件定义 给外部使用
 global _start
 global TimerHandlerEntry
-
+global SysCallHandlerEntry
 
 ; 引用外部的变量
 extern gGdtInfo
@@ -18,6 +18,7 @@ extern EnableTimer
 extern SendEOI
 extern ClearScreen
 extern TimerHandler
+extern SysCallHandler
 
 ;定义宏 0 代表不需要参数
 %macro BeginISR  0
@@ -107,5 +108,12 @@ InitGlobal:
 TimerHandlerEntry:
 BeginISR
     call TimerHandler
+EndISR
+
+SysCallHandlerEntry:
+BeginISR
+    push ax   ;后续继续看一下 汇编调用c语言时 栈上是怎么设置的
+    call SysCallHandler
+    pop ax
 EndISR
      

@@ -1,5 +1,5 @@
 #include "interrupt.h"
-
+#include "task.h"
 
 void TimerHandler()
 {
@@ -12,4 +12,12 @@ void TimerHandler()
     }
     
     SendEOI(MASTER_EOI_PORT); //发送中断结束标志
+}
+
+void SysCallHandler(ushort ax)
+{
+	  if( ax == 0 )
+	  {
+			KillTask();
+	  }
 }
