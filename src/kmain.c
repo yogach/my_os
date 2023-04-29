@@ -1,6 +1,7 @@
 #include "screen.h"
 #include "task.h"
 #include "interrupt.h"
+#include "app.h"
 
 void KMain()
 {
@@ -21,7 +22,8 @@ void KMain()
     PrintString("IDT Size: ");
     PrintIntDec((uint)gIdtInfo.size);
     PrintChar('\n');
-    
+
+		AppModInit();
     
     TaskModInit();
     
