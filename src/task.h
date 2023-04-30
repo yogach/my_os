@@ -49,6 +49,8 @@ typedef struct
 		//新增变量在此开始新增
     void  (*tmain)();
     uint       id;
+		ushort     current;
+		ushort     total;
     char       name[8]; 
     byte       stack[512];   //任务使用的栈
 } Task;
