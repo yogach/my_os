@@ -34,21 +34,28 @@ const:
 	
 _start:
     jmp BLMain
-	
-;
+
+; LoadTarget的执行位置是在16位模式下 所以一个指针占的大小是2字节	
+; unshort LoadTarget( char*   Target,      notice ==> sizeof(char*) == 2
+;                     unshort TarLen,
+;                     unshort BaseOfTarget,
+;                     unshort BOT_Div_0x10,
+;                     char*   Buffer );
 ; return:
 ;     dx --> (dx != 0) ? success : failure    
 LoadTarget:
-    ;将根目录区拷贝到内存
+        mov bp, sp
+ 
+        ;将根目录区拷贝到内存
 	mov ax, RootEntryOffset
 	mov cx, RootEntryLength
-	mov bx, Buffer
+	mov bx, [bp + 10] ; mov bx, Buffer
 	
 	call ReadSector 
 	
 	;查找目标文件在目录中是否存在
-	mov si, Target
-	mov cx, TarLen
+	mov si, [bp + 2] ;mov si, Target
+	mov cx, [bp + 4] ;mov cx, TarLen
 	mov dx, 0
 	
 	call FindEntry 
@@ -58,17 +65,18 @@ LoadTarget:
 	jz finish
 	
 	;将目标文件根目录信息拷贝到指定区域
-    mov si, bx
+        mov si, bx
 	mov di, EntryItem
 	mov cx, EntryItemLength
 	
 	call MemCpy
 	
 	;计算fat表的长度 然后拷贝到BaseOfTarget的前面
+	mov bp, sp
 	mov ax, FatEntryLength
 	mov cx, [BPB_BytsPerSec]
 	mul cx 
-	mov bx, BaseOfTarget
+	mov bx, [bp + 6] ;mov bx, BaseOfTarget
 	sub bx, ax
 	
 	mov ax, FatEntryOffset
@@ -77,9 +85,9 @@ LoadTarget:
 	call ReadSector
 	
 	mov dx, [EntryItem + 0x1A]
-	mov si, BaseOfTarget / 0x10
-	mov es, si  ;重新设置es si 定位到要拷贝的位置
-	mov si, 0   ;
+	mov es, [bp + 8] ;mov si, BaseOfTarget / 0x10 ;重新设置es si 定位到要拷贝的位置
+	                 ;mov es, si 
+	xor si, si  ;异或操作 相当于清0 那为什么 mov si, 0不行？
 
 loading:
 	mov ax, dx  ;dx保存的是目标文件数据的从0开始的偏移簇号
@@ -99,6 +107,8 @@ loading:
 	;因为si的最大值为0xffff 拷贝的最大大小为64K 以下的代码就为了解除这个限制
 	cmp si, 0      ;将si与0做比较 确定si是否已经溢出 si的最大值为0xffff
 	jnz continue
+
+	;如果溢出 则es的递增
 	mov si, es
 	add si, 0x1000 ;将es值加 0x1000 实际上指向地址增加了 0x10000
 	mov es, si
@@ -267,31 +277,14 @@ noequal:
 	
 	ret 
 	
-;es:bp --> string address
-;cx    --> string length
-print:
-    mov dx, 0
-    mov ax, 0x1301
-    mov bx, 0x0007
-    int 0x10    ;调用bios中断打印字符串
-    ret
-
-;no parameter
-ResetFloppy:
-	push ax
-	mov ah, 0x00
-	mov dl, [BS_DrvNum]
-	int 0x13
-	pop ax
-	
-	ret
-	
 ; ax    --> logic sector number
 ; cx    --> number of sector
 ; es:bx --> target address	
 ReadSector:
-	
-	call ResetFloppy
+       
+	mov ah, 0x00
+	mov dl, [BS_DrvNum]
+	int 0x13
 	
 	push bx
 	push cx

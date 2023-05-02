@@ -4,11 +4,9 @@
 
 org BaseOfLoader
 
-interface:
-    BaseOfStack   equ   BaseOfLoader
-    BaseOfTarget  equ   BaseOfKernel      ;加载地址
-    Target db  "KERNEL     "              ;加载的文件名
-    TarLen equ ($-Target)                 ;文件名长度
+BaseOfStack   equ   BaseOfLoader
+Kernel db  "KERNEL     "             ;加载的内核名字
+KnLen equ ($-Kernel)                 ;内核长度
 
 [section .gdt]
 ; GDT definition
@@ -87,8 +85,16 @@ BLMain:
     shl eax, 4
     add eax, IDT_ENTRY
     mov dword [IdtPtr + 2], eax    
-    
+
+    ;load kernel
+    push word Buffer
+    push word BaseOfKernel / 0x10
+    push word BaseOfKernel
+    push word KnLen
+    push word Kernel
     call LoadTarget
+    add sp, 10     ;完成加载后清除之前压入栈的参数
+    
     
     cmp dx, 0
     jz output
@@ -126,12 +132,15 @@ BLMain:
     ; 5. jump to 32 bits code
     jmp dword Code32Selector : 0
 
-output:	
+output:
     mov bp, ErrStr
     mov cx, ErrLen
-	call print
+    xor dx, dx
+    mov ax, 0x1301
+    mov bx, 0x0007
+    int 0x10    ;调用bios中断打印字符串
 	
-	jmp $
+    jmp $
 
 ; esi    --> code segment label
 ; edi    --> descriptor label
@@ -414,7 +423,7 @@ CODE32_SEGMENT:
     mov esp, BaseOfLoader
     
     ;跳转到内核入口执行
-    jmp dword Code32FlatSelector : BaseOfTarget
+    jmp dword Code32FlatSelector : BaseOfKernel
 
 ;
 ;
