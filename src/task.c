@@ -8,8 +8,8 @@
 #define MAX_READY_TASK    (MAX_TASK_NUM - MAX_RUNNING_TASK)
 #define PID_BASE            0x10
 
-extern AppInfo* GetAppToRun(uint index);
-extern uint GetAppNum();
+static AppInfo* (*GetAppToRun) (uint index) = NULL;
+static uint (*GetAppNum)() = NULL;
 
 void (* const RunTask)(volatile Task* pt) = NULL;
 void (* const LoadTask)(volatile Task* pt) = NULL;
@@ -193,6 +193,10 @@ static void RunningToReady()
 void TaskModInit()
 {
     int i = 0;
+
+    //GetAppToRunEntry 强制转换为 uint 类型的指针，并获取其指向的值，再将该值强制转换为 void* 类型的指针。
+	GetAppToRun = (void*)(*((uint*)GetAppToRunEntry));
+	GetAppNum = (void*)(*((uint*)GetAppNumEntry));
 		
     Queue_Init(&gFreeTaskNode);
 		Queue_Init(&gRunningTask);

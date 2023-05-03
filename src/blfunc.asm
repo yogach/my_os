@@ -33,7 +33,7 @@ const:
 	FatEntryLength   equ 9
 	
 _start:
-    jmp BLMain
+    jmp BLMain ;跳转到BLMain执行
 
 ; LoadTarget的执行位置是在16位模式下 所以一个指针占的大小是2字节	
 ; unshort LoadTarget( char*   Target,      notice ==> sizeof(char*) == 2
