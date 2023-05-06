@@ -5,6 +5,8 @@
 
 void KMain()
 {
+    void (*AppModInit)() = (void*)BaseOfApp;
+
     int n = PrintString("D.T.OS\n");
     
     PrintString("GDT Entry: ");
@@ -27,7 +29,7 @@ void KMain()
     
     TaskModInit();
     
-    IntModInit(); //初始化中断    
+    IntModInit(); //初始化中断
     
     LaunchTask(); //开始执行任务
 }

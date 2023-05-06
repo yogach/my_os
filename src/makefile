@@ -1,8 +1,25 @@
 
 .PHONY : all clean rebuild
 
+KERNEL_SRC := kmain.c \
+              screen.c \
+              kernel.c \
+              utility.c \
+              task.c    \
+              interrupt.c \
+              ihandler.c \
+              list.c    \
+              queue.c 
+
+APP_SRC := screen.c   \
+            utility.c  \
+            app.c      
+              
+
 KERNEL_ADDR := B000
+APP_ADDR     := F000
 IMG := D.T.OS
+#挂载目录
 IMG_PATH := /mnt/hgfs
 
 DIR_DEPS := deps
@@ -12,45 +29,47 @@ DIR_OBJS := objs
 DIRS := $(DIR_DEPS) $(DIR_EXES) $(DIR_OBJS)
 
 KENTRY_SRC := kentry.asm
+AENTRY_SRC     := aentry.asm
 BLFUNC_SRC := blfunc.asm
 LOADER_SRC := loader.asm
 COMMON_SRC := common.asm
 BOOT_SRC := boot.asm
 
-#KERNEL_SRC := kmain.c \
-#              screen.c \
-#              kernel.c \
-#              interrupt.c \
-#              task.c \
-#              utility.c \
+
 
 BOOT_OUT := boot
 LOADER_OUT := loader
 KERNEL_OUT := kernel
+APP_OUT     := app
 KENTRY_OUT := $(DIR_OBJS)/kentry.o
+AENTRY_OUT  := $(DIR_OBJS)/aentry.o
 
-#定义最终生成的目标名 并加上文件夹名
-EXE := kernel.out
-EXE := $(addprefix $(DIR_EXES)/, $(EXE))
-
-#得到当前目录下的所有.c后缀文件
-SRCS := $(wildcard *.c)
-#SRCS := $(KERNEL_SRC)
-
-#将.c后缀替换成.o
-OBJS := $(SRCS:.c=.o)
-
-#OBJS上增加一个文件夹前缀
-OBJS := $(addprefix $(DIR_OBJS)/, $(OBJS))
-
+#定义编译Kernel的中间文件 放入到DIR_EXES内
+KERNEL_EXE := kernel.out
+KERNEL_EXE := $(addprefix $(DIR_EXES)/, $(KERNEL_EXE))
+#将KERNEL_SRC指定的文件.c后缀替换成.o
+KERNEL_OBJS := $(KERNEL_SRC:.c=.o)
+#KERNEL_OBJS 上增加一个文件夹前缀
+KERNEL_OBJS := $(addprefix $(DIR_OBJS)/, $(KERNEL_OBJS))
 #.c后缀替换成.dep
-DEPS := $(SRCS:.c=.dep)
-
+KERNEL_DEPS := $(KERNEL_SRC:.c=.dep)
 #DEPS上增加一个文件夹前缀
-DEPS := $(addprefix $(DIR_DEPS)/,$(DEPS))
+KERNEL_DEPS := $(addprefix $(DIR_DEPS)/,$(KERNEL_DEPS))
+
+#定义编译App的中间文件 放入到DIR_EXES内
+APP_EXE := app.out
+APP_EXE := $(addprefix $(DIR_EXES)/, $(APP_EXE))
+#将KERNEL_SRC指定的文件.c后缀替换成.o
+APP_OBJS := $(APP_SRC:.c=.o)
+#KERNEL_OBJS 上增加一个文件夹前缀
+APP_OBJS := $(addprefix $(DIR_OBJS)/, $(APP_OBJS))
+#.c后缀替换成.dep
+APP_DEPS := $(APP_SRC:.c=.dep)
+#DEPS上增加一个文件夹前缀
+APP_DEPS := $(addprefix $(DIR_DEPS)/,$(APP_DEPS))
 
 
-all : $(DIRS)  $(IMG) $(BOOT_OUT) $(LOADER_OUT) $(KERNEL_OUT)
+all : $(DIRS)  $(IMG) $(BOOT_OUT) $(LOADER_OUT) $(KERNEL_OUT) $(APP_OUT)
 	@echo "Build Success ==> D.T.OS!"
 
 #指定参数all和不指定参数时 需要包含$(DEPS)
@@ -78,14 +97,29 @@ $(LOADER_OUT) : $(LOADER_SRC) $(COMMON_SRC) $(BLFUNC_SRC)
 $(KENTRY_OUT) : $(KENTRY_SRC) $(COMMON_SRC)
 	nasm -f elf $< -o $@
 
-$(KERNEL_OUT) : $(EXE)
+#使用elf2obj 提取文件内的代码段和数据段 -c指定的是$@在内存中的加载地址
+$(KERNEL_OUT) : $(KERNEL_EXE)
 	./elf2kobj -c$(KERNEL_ADDR) $< $@
 	sudo mount -o loop $(IMG) $(IMG_PATH)
 	sudo cp $@ $(IMG_PATH)/$@
 	sudo umount $(IMG_PATH)
 
-$(EXE) : $(KENTRY_OUT) $(OBJS) 
+$(KERNEL_EXE) : $(KENTRY_OUT) $(KERNEL_OBJS) 
 	ld -s $^ -o $@
+
+
+$(AENTRY_OUT) : $(AENTRY_SRC) $(COMMON_SRC)
+	nasm -f elf $< -o $@
+
+#
+$(APP_OUT) : $(APP_EXE)
+	./elf2kobj -c$(APP_ADDR) $< $@
+	sudo mount -o loop $(IMG) $(IMG_PATH)
+	sudo cp $@ $(IMG_PATH)/$@
+	sudo umount $(IMG_PATH)
+
+$(APP_EXE) : $(APP_OUT) $(APP_OBJS) 
+	ld -s $^ -o $@	
 
 $(DIR_OBJS)/%.o : %.c
 	gcc -fno-builtin -fno-stack-protector -o $@ -c $(filter %.c, $^)

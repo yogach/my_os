@@ -3,6 +3,7 @@
 BaseOfBoot    equ   0x7c00
 BaseOfLoader  equ   0x9000
 BaseOfKernel  equ   0xb000
+BaseOfApp     equ   0xf000
 
 BaseOfSharedMemory    equ   0xa000
 

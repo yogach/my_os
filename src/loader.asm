@@ -5,8 +5,12 @@
 org BaseOfLoader
 
 BaseOfStack   equ   BaseOfLoader
+
 Kernel db  "KERNEL     "             ;加载的内核名字
-KnLen equ ($-Kernel)                 ;内核长度
+KnLen equ ($-Kernel)                 ;字符串长度
+App    db  "APP        "
+AppLen equ ($ - App)
+
 
 [section .gdt]
 ; GDT definition
@@ -84,7 +88,19 @@ BLMain:
     mov ax, ds
     shl eax, 4
     add eax, IDT_ENTRY
-    mov dword [IdtPtr + 2], eax    
+    mov dword [IdtPtr + 2], eax
+
+    ;load app
+    push word Buffer
+    push word BaseOfApp / 0x10
+    push word BaseOfApp
+    push word AppLen
+    push word App
+    call LoadTarget
+    add sp, 10     ;完成加载后清除之前压入栈的参数 
+
+    cmp dx, 0
+    jz AppErr
 
     ;load kernel
     push word Buffer
@@ -97,7 +113,7 @@ BLMain:
     
     
     cmp dx, 0
-    jz output
+    jz KernelErr
     
     call StoreGlobal
 
@@ -132,9 +148,16 @@ BLMain:
     ; 5. jump to 32 bits code
     jmp dword Code32Selector : 0
 
+AppErr:
+    mov bp, NoApp
+    mov cx, NALen
+    jmp output
+KernelErr:
+    mov bp, NoKernel
+    mov cx, NKLen    
 output:
-    mov bp, ErrStr
-    mov cx, ErrLen
+    mov ax, cs
+    mov es, ax
     xor dx, dx
     mov ax, 0x1301
     mov bx, 0x0007
@@ -434,6 +457,10 @@ DefaultHandler    equ    DefaultHandlerFunc - $$
 
 Code32SegLen    equ    $ - CODE32_SEGMENT
 
-ErrStr db  "No KERNEL"
-ErrLen equ ($-ErrStr) ;$代表当前行地址 结果是得到MsgStr的长度
+NoKernel db  "No KERNEL"
+NKLen equ ($-NoKernel) ;$代表当前行地址 结果是得到MsgStr的长度
+
+NoApp    db  "No APP"    
+NALen    equ ($-NoApp)
+
 Buffer db 0
