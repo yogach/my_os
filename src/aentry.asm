@@ -25,7 +25,7 @@ AppModInit: ; 0xf000
      
      leave
      
-     jmp $
+     ret
 
 
      

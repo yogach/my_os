@@ -87,7 +87,7 @@ LoadTarget:
 	mov dx, [EntryItem + 0x1A]
 	mov es, [bp + 8] ;mov si, BaseOfTarget / 0x10 ;重新设置es si 定位到要拷贝的位置
 	                 ;mov es, si 
-	xor si, si  ;异或操作 相当于清0 那为什么 mov si, 0不行？
+	mov si, 0        ;直接清0可行 
 
 loading:
 	mov ax, dx  ;dx保存的是目标文件数据的从0开始的偏移簇号

@@ -7,7 +7,7 @@ org BaseOfLoader
 BaseOfStack   equ   BaseOfLoader
 
 Kernel db  "KERNEL     "             ;加载的内核名字
-KnLen equ ($-Kernel)                 ;字符串长度
+KnlLen equ ($-Kernel)                 ;字符串长度
 App    db  "APP        "
 AppLen equ ($ - App)
 
@@ -102,11 +102,16 @@ BLMain:
     cmp dx, 0
     jz AppErr
 
+    ; LoadTarget内会修改ax和es的值 所以在此处重新设置ax es的值
+    ; restore es register
+    mov ax, cs
+    mov es, ax
+    
     ;load kernel
     push word Buffer
     push word BaseOfKernel / 0x10
     push word BaseOfKernel
-    push word KnLen
+    push word KnlLen
     push word Kernel
     call LoadTarget
     add sp, 10     ;完成加载后清除之前压入栈的参数

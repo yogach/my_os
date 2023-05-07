@@ -118,7 +118,7 @@ $(APP_OUT) : $(APP_EXE)
 	sudo cp $@ $(IMG_PATH)/$@
 	sudo umount $(IMG_PATH)
 
-$(APP_EXE) : $(APP_OUT) $(APP_OBJS) 
+$(APP_EXE) : $(AENTRY_OUT) $(APP_OBJS) 
 	ld -s $^ -o $@	
 
 $(DIR_OBJS)/%.o : %.c
@@ -144,7 +144,7 @@ endif
 	gcc -MM -E $(filter %.c, $^) | sed 's,\(.*\)\.o[ :]*,objs/\1.o $@ : ,g' > $@
 	
 clean :
-	rm -fr $(IMG) $(BOOT_OUT) $(LOADER_OUT) $(KERNEL_OUT) $(DIRS)
+	rm -fr $(IMG) $(BOOT_OUT) $(LOADER_OUT) $(KERNEL_OUT) $(APP_OUT) $(DIRS)
 	
 rebuild :
 	@$(MAKE) clean
