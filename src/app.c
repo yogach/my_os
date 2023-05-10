@@ -29,9 +29,9 @@ static void RegApp(const char* name, void(*tmain)(), byte pri)
 void AppMain()
 {
    RegApp("Task A", TaskA, 255);
-	 RegApp("Task B", TaskB, 230);
-	 RegApp("Task C", TaskC, 230);
-	 RegApp("Task D", TaskD, 255);
+	 //RegApp("Task B", TaskB, 230);
+	 //RegApp("Task C", TaskC, 230);
+	 //RegApp("Task D", TaskD, 255);
 }
 
 //按index得到一个AppInfo
@@ -55,10 +55,15 @@ uint GetAppNum()
 void TaskA()
 {
     int i = 0;
+		//uint* p = (void*)0xE000;
     
     SetPrintPos(0, 12);
     
     PrintString(__FUNCTION__);
+
+		//*p = 1000;
+
+		//while(1);
     
     while( i < 5 )
     {

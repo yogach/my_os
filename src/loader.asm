@@ -14,15 +14,16 @@ AppLen equ ($ - App)
 
 [section .gdt]
 ; GDT definition
-;                                      Base,         Limit,         Attribute
-GDT_ENTRY            :     Descriptor    0,            0,           0
-CODE32_DESC          :     Descriptor    0,     Code32SegLen - 1,   DA_C + DA_32 + DA_DPL0
-VIDEO_DESC           :     Descriptor    0xB8000,    0x07FFF,       DA_DRWA + DA_32 + DA_DPL0
-CODE32_FLAT_DESC     :     Descriptor    0,          0xFFFFF,       DA_C + DA_32 + DA_DPL0
-DATA32_FLAT_DESC     :     Descriptor    0,          0xFFFFF,       DA_DRW + DA_32 + DA_DPL0
-TASK_LDT_DESC        :     Descriptor    0,          0,             0                           ;定义局部段描述符 对应的值在程序中动态设置
-TASK_TSS_DESC        :     Descriptor    0,          0,             0
-
+;                                      Base,             Limit,         Attribute
+GDT_ENTRY            :     Descriptor    0,              0,           0
+CODE32_DESC          :     Descriptor    0,         Code32SegLen - 1,   DA_C + DA_32 + DA_DPL0
+VIDEO_DESC           :     Descriptor    0xB8000,        0x07FFF,       DA_DRWA + DA_32 + DA_DPL0
+CODE32_FLAT_DESC     :     Descriptor    0,              0xFFFFF,       DA_C + DA_32 + DA_DPL0
+DATA32_FLAT_DESC     :     Descriptor    0,              0xFFFFF,       DA_DRW + DA_32 + DA_DPL0
+TASK_LDT_DESC        :     Descriptor    0,              0,             0                           ;定义局部段描述符 对应的值在程序中动态设置
+TASK_TSS_DESC        :     Descriptor    0,              0,             0
+PAGE_DIR_DESC        :     Descriptor    PageDirBase,    4095,          DA_DRW + DA_LIMIT_4K + DA_32  ;一级页表保存的是二级页表的地址 一个项长度为4字节 一共1024项
+PAGE_TBL_DESC        :     Descriptor    PageTblBase,    1023,          DA_DRW + DA_LIMIT_4K + DA_32 ;二级页表保存的是对应的物理地址 一个项长度为4K字节 一共1023项
 
 ; GDT end
 
@@ -38,7 +39,9 @@ Code32Selector        equ (0x0001 << 3) + SA_TIG + SA_RPL0
 VideoSelector         equ (0x0002 << 3) + SA_TIG + SA_RPL0
 Code32FlatSelector    equ (0x0003 << 3) + SA_TIG + SA_RPL0
 Data32FlatSelector    equ (0x0004 << 3) + SA_TIG + SA_RPL0
-
+;其中 5和6 定义在const.h内
+PageDirSelector       equ (0x0007 << 3) + SA_TIG + SA_RPL0
+PageTblSelector       equ (0x0008 << 3) + SA_TIG + SA_RPL0
 
 ; end of [section .gdt]
 
@@ -348,6 +351,11 @@ RunTask:
     and ax, 0xfe
 
     out dx, al
+
+    ;使能x86的分页机制
+    mov eax, cr0
+    or eax, 0x80000000
+    mov cr0, eax    
     
     iret       ; 调用iret的同时 会将 eip cs elags esp ss 寄存器出栈 用于恢复现场
 
@@ -449,9 +457,63 @@ CODE32_SEGMENT:
     mov ax, Data32FlatSelector
     mov ss, ax
     mov esp, BaseOfLoader
+
+    call SetupPage
     
     ;跳转到内核入口执行
     jmp dword Code32FlatSelector : BaseOfKernel
+
+;
+;
+SetupPage:
+   push eax
+   push ecx
+   push edi
+   push es
+   
+   ;设置一级页表
+   mov ax, PageDirSelector
+   mov es, ax
+   mov ecx, 1024       ; 一共1024个一级页表项
+   mov edi, 0
+   mov eax, PageTblBase | PG_P | PG_USU | PG_RWW   ;将一级页表中填入对应值
+   
+   cld
+ 
+   ; 循环设置一级页表
+stdir:
+   stosd      ;将eax的值发送到 es:edi 之后edi + 4
+   add eax, 4096
+   loop stdir ; 循环执行stdir 直到cx为0
+
+   ;设置二级页表
+   mov ax, PageTblSelector
+   mov es, ax
+   mov ecx, 1024 * 1024
+   mov edi, 0
+   mov eax, PG_P | PG_USU | PG_RWW
+   
+   cld
+
+sttbl:
+   stosd
+   add eax, 4096
+   loop sttbl
+   
+   ;打开x86中的分页功能
+   mov eax, PageDirBase
+   mov cr3, eax
+   
+   ;mov eax, cr0
+   ;or eax, 0x80000000
+   ;mov cr0, eax
+   
+   pop es
+   pop edi
+   pop ecx
+   pop eax
+
+   ret   
 
 ;
 ;

@@ -15,13 +15,15 @@ void (* const RunTask)(volatile Task* pt) = NULL;
 void (* const LoadTask)(volatile Task* pt) = NULL;
 
 volatile Task* gCTaskAddr = NULL; //使用volatile 防止编译器自动优化此变量 造成指针的值没有变化
-static TaskNode gTaskBuff[MAX_TASK_NUM] = {0};
+//static TaskNode gTaskBuff[MAX_TASK_NUM] = {0};  
+static TaskNode* gTaskBuff = NULL; 
 static Queue gFreeTaskNode = {0};
 static Queue gReadyTask = {0};
 static Queue gRunningTask = {0};
 static Queue gWaittingTask = {0};
 static TSS gTSS = {0};
-static TaskNode gIdleTask = {0};
+//static TaskNode gIdleTask = {0};
+static TaskNode* gIdleTask = NULL;
 static uint gAppToRunIndex = 0;
 static uint gPid = PID_BASE;
 
@@ -30,7 +32,7 @@ static void TaskEntry()
 {
 	if( gCTaskAddr )
 	{
-		gCTaskAddr->tmain();  //调用
+		gCTaskAddr->tmain();  //调用对应任务函数
 	}
 
 	//调用0x80中断
@@ -47,19 +49,22 @@ static void TaskEntry()
 //空闲任务 用于在没有任务执行时使用
 static void IdleTask()
 {
+    //这里不屏蔽会造成运行出错 
+	//出错的原因是本任务运行在3特权级 而SetPrintPos位于内核代码段中 不可写入
 	int i = 0;
 
-	SetPrintPos(0, 10);
+	//SetPrintPos(0, 10);
 
-	PrintString(__FUNCTION__);
+	//PrintString(__FUNCTION__);
 
-	while( 1 )
-	{
+	while( 1 );
+/*	{
 		SetPrintPos(10, 10);
 		PrintChar('A' + i);
 		i = (i + 1) % 26;
 		Delay(1);
 	}
+*/	
 }
 
 
@@ -138,12 +143,12 @@ static void CheckRunningTask()
 	//判断当前执行队列中是否为空 如果为空则需要填入空闲任务
 	if( Queue_Length(&gRunningTask) == 0 )
 	{
-		Queue_Add(&gRunningTask, (QueueNode*)&gIdleTask);
+		Queue_Add(&gRunningTask, (QueueNode*)gIdleTask);
 	}
 	else if( Queue_Length(&gRunningTask) > 1 )
 	{
 		//当执行队列的任务数量大于1 并且有空闲任务再执行时 移除空闲任务
-		if(IsEqual(Queue_Front(&gRunningTask), (QueueNode*)&gIdleTask) )
+		if(IsEqual(Queue_Front(&gRunningTask), (QueueNode*)gIdleTask) )
 		{
 			Queue_Remove(&gRunningTask);
 		}
@@ -179,7 +184,7 @@ static void RunningToReady()
 		TaskNode* tn = (TaskNode*)Queue_Front(&gRunningTask);
 
 		//不判断idletask的状态
-		if( !IsEqual(tn, (QueueNode*)&gIdleTask) )
+		if( !IsEqual(tn, (QueueNode*)gIdleTask) )
 		{
 
 			//如果已经到达运行时间 调度到就绪队列
@@ -195,6 +200,13 @@ static void RunningToReady()
 void TaskModInit()
 {
 	int i = 0;
+
+	//因为任务执行时处于特权级3 而任务所需的栈空间定义在了内核区域内 
+	//在执行了ConfigPageTable之后 内核区域就被设置成特权级3只读了 
+	//所以先将gTaskBuff定义在内核区域外
+	gTaskBuff = (void*)0x40000;
+
+	gIdleTask = (void*)AddrOff(gTaskBuff, MAX_TASK_NUM);
 
 	//GetAppToRunEntry 强制转换为 uint 类型的指针，并获取其指向的值，再将该值强制转换为 void* 类型的指针。
 	GetAppToRun = (void*)(*((uint*)GetAppToRunEntry));
@@ -213,7 +225,7 @@ void TaskModInit()
 	//设置全局段描述符内TSS的值
 	SetDescValue(AddrOff(gGdtInfo.entry, GDT_TASK_TSS_INDEX), (uint)&gTSS, sizeof(gTSS) - 1, DA_386TSS + DA_DPL0);
 
-	InitTask(&gIdleTask.task, 0, "IdleTask", IdleTask, 255);
+	InitTask(&gIdleTask->task, 0, "IdleTask", IdleTask, 255);
 
 	ReadyToRunning();
 

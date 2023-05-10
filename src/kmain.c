@@ -30,6 +30,8 @@ void KMain()
     TaskModInit();
     
     IntModInit(); //初始化中断
+
+		ConfigPageTable();
     
     LaunchTask(); //开始执行任务
 }
