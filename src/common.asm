@@ -1,5 +1,5 @@
 
-;Page Base
+;Page Base 定义页表存放的位置
 PageDirBase   equ   0x50000
 PageTblBase   equ   0x51000
 

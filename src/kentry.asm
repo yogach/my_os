@@ -5,6 +5,7 @@
 global _start
 global TimerHandlerEntry
 global SysCallHandlerEntry
+global PageFaultHandlerEntry
 
 ; 引用外部的变量
 extern gGdtInfo
@@ -17,8 +18,11 @@ extern InitInterrupt
 extern EnableTimer
 extern SendEOI
 extern ClearScreen
+
+
 extern TimerHandler
 extern SysCallHandler
+extern PageFaultHandler
 
 ;定义宏 0 代表不需要参数
 %macro BeginISR  0
@@ -54,6 +58,28 @@ extern SysCallHandler
    
    iret
    
+%endmacro
+
+;定义宏 0 代表不需要参数
+%macro BeginFSR  0
+   cli         ;关闭中断
+
+   ; 异常中RegValue的raddr 实际上保存的是异常发生时的error code
+   ; sub esp, 4  
+   
+   ; 通用寄存器压栈 保存现场
+   pushad      
+   
+   push ds
+   push es
+   push fs
+   push gs
+   
+   mov dx, ss   
+   mov ds, dx
+   mov es, dx
+   
+   mov esp, BaseOfLoader   ;完成保存现场之后重新设置内核栈
 %endmacro
 
 [section .text]
@@ -110,10 +136,18 @@ BeginISR
     call TimerHandler
 EndISR
 
+;
+;
 SysCallHandlerEntry:
 BeginISR
-    push ax   ;后续继续看一下 汇编调用c语言时 栈上是怎么设置的
+    push ax   ;将参数压入栈
     call SysCallHandler
     pop ax
 EndISR
+
+PageFaultHandlerEntry:
+BeginFSR
+    call PageFaultHandler
+EndISR
+
      

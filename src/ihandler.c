@@ -1,6 +1,8 @@
 #include "interrupt.h"
 #include "task.h"
 
+extern volatile Task* gCTaskAddr;
+
 void TimerHandler()
 {
     static uint i = 0;
@@ -18,6 +20,16 @@ void SysCallHandler(ushort ax)
 {
 	  if( ax == 0 )
 	  {
-			KillTask();
+		KillTask();
 	  }
+}
+
+void PageFaultHandler()
+{
+    SetPrintPos(0, 6);
+    
+    PrintString("Page Fault: kill ");
+    PrintString(gCTaskAddr->name);
+    
+    KillTask();
 }
