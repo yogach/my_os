@@ -22,7 +22,7 @@ CODE32_FLAT_DESC     :     Descriptor    0,              0xFFFFF,       DA_C + D
 DATA32_FLAT_DESC     :     Descriptor    0,              0xFFFFF,       DA_DRW + DA_32 + DA_DPL0
 TASK_LDT_DESC        :     Descriptor    0,              0,             0                           ;定义局部段描述符 对应的值在程序中动态设置
 TASK_TSS_DESC        :     Descriptor    0,              0,             0
-PAGE_DIR_DESC        :     Descriptor    PageDirBase,    4095,          DA_DRW + DA_LIMIT_4K + DA_32  ;一级页表保存的是二级页表的地址 一个项长度为4字节 一共1024项
+PAGE_DIR_DESC        :     Descriptor    PageDirBase,    4095,          DA_DRW + DA_32  ;一级页表保存的是二级页表的地址 一个项长度为4字节 一共1024项
 PAGE_TBL_DESC        :     Descriptor    PageTblBase,    1023,          DA_DRW + DA_LIMIT_4K + DA_32 ;二级页表保存的是对应的物理地址 一个项长度为4K字节 一共1023项
 
 ; GDT end

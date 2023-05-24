@@ -33,3 +33,13 @@ void PageFaultHandler()
     
     KillTask();
 }
+
+void SegmentFaultHandler()
+{
+    SetPrintPos(0, 6);
+    
+    PrintString("Segment Fault: kill ");
+    PrintString(gCTaskAddr->name);
+    
+    KillTask();
+}

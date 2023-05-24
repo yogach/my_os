@@ -8,6 +8,7 @@ void (* const SendEOI)(uint port) = NULL;
 
 void IntModInit()
 {
+	 SetIntHandler(AddrOff(gIdtInfo.entry, 0x0d), (uint)SegmentFaultHandlerEntry);	//设置段错误异常处理函数	
    SetIntHandler(AddrOff(gIdtInfo.entry, 0x0e), (uint)PageFaultHandlerEntry);  //设置页错误异常处理函数
    SetIntHandler(AddrOff(gIdtInfo.entry, 0x20), (uint)TimerHandlerEntry);  //设置定时器中断处理函数
    SetIntHandler(AddrOff(gIdtInfo.entry, 0x80), (uint)SysCallHandlerEntry);  //设置系统调用软中断处理函数

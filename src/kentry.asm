@@ -6,6 +6,8 @@ global _start
 global TimerHandlerEntry
 global SysCallHandlerEntry
 global PageFaultHandlerEntry
+global SegmentFaultHandlerEntry
+
 
 ; 引用外部的变量
 extern gGdtInfo
@@ -23,6 +25,7 @@ extern ClearScreen
 extern TimerHandler
 extern SysCallHandler
 extern PageFaultHandler
+extern SegmentFaultHandler
 
 ;定义宏 0 代表不需要参数
 %macro BeginISR  0
@@ -145,9 +148,18 @@ BeginISR
     pop ax
 EndISR
 
+;
+;
 PageFaultHandlerEntry:
 BeginFSR
     call PageFaultHandler
+EndISR
+
+;
+;
+SegmentFaultHandlerEntry:
+BeginFSR
+    call SegmentFaultHandler
 EndISR
 
      

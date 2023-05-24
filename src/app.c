@@ -55,7 +55,7 @@ uint GetAppNum()
 void TaskA()
 {
     int i = 0;
-	uint* p = (void*)0xE000;
+	uint* p = (void*)0x50000;
     
     SetPrintPos(0, 12);
     
