@@ -42,7 +42,7 @@ void ConfigPageTable()
 	uint index = BaseOfApp / 0x1000 - 1;  
 	int i = 0;
 
-    //从第0页开始修改属性
+  //从第0页开始修改属性
 	for(i=0x0; i<=index; i++)
 	{
 		uint* addr = TblBase + i; 

@@ -6,6 +6,7 @@
 #define MAX_TASK_NUM      4
 #define MAX_RUNNING_TASK  2
 #define MAX_READY_TASK    (MAX_TASK_NUM - MAX_RUNNING_TASK)
+#define MAX_TASK_BUFF_NUM (MAX_TASK_NUM + 1)
 #define PID_BASE            0x10
 
 static AppInfo* (*GetAppToRun) (uint index) = NULL;
@@ -15,14 +16,12 @@ void (* const RunTask)(volatile Task* pt) = NULL;
 void (* const LoadTask)(volatile Task* pt) = NULL;
 
 volatile Task* gCTaskAddr = NULL; //使用volatile 防止编译器自动优化此变量 造成指针的值没有变化
-//static TaskNode gTaskBuff[MAX_TASK_NUM] = {0};  
-static TaskNode* gTaskBuff = NULL; 
+static TaskNode gTaskBuff[MAX_TASK_BUFF_NUM] = {0};
 static Queue gFreeTaskNode = {0};
 static Queue gReadyTask = {0};
 static Queue gRunningTask = {0};
 static Queue gWaittingTask = {0};
 static TSS gTSS = {0};
-//static TaskNode gIdleTask = {0};
 static TaskNode* gIdleTask = NULL;
 static uint gAppToRunIndex = 0;
 static uint gPid = PID_BASE;
@@ -49,7 +48,7 @@ static void TaskEntry()
 //空闲任务 用于在没有任务执行时使用
 static void IdleTask()
 {
-    //这里不屏蔽会造成运行出错 
+  //这里不屏蔽会造成运行出错 
 	//出错的原因是本任务运行在3特权级 而SetPrintPos位于内核代码段中 不可写入
 	int i = 0;
 
@@ -78,7 +77,7 @@ static void InitTask(Task* pt, uint id, const char* name, void(*entry)(), ushort
 	pt->rv.fs = LDT_DATA32_SELECTOR;
 	pt->rv.ss = LDT_DATA32_SELECTOR;   //ss-栈段寄存器
 
-	pt->rv.esp = (uint)pt->stack + sizeof(pt->stack); // esp 栈顶指针寄存器 指向预定义的栈顶
+	pt->rv.esp = (uint)pt->stack + AppStackSize;      // esp 栈顶指针寄存器 指向预定义的栈顶 栈地址是从高到低的
 	pt->rv.eip = (uint)TaskEntry;                     // eip 下一条指令地址指向任务入口
 	pt->rv.eflags = 0x3202;                           // IOPL = 3 if = 1
 	pt->tmain = entry;
@@ -200,12 +199,16 @@ static void RunningToReady()
 void TaskModInit()
 {
 	int i = 0;
+  byte* pStack = (byte*)(PageDirBase - (AppStackSize * MAX_TASK_BUFF_NUM)); //将app使用的栈定义在app区域的末尾
 
-	//因为任务执行时处于特权级3 而任务所需的栈空间定义在了内核区域内 
-	//在执行了ConfigPageTable之后 内核区域就被设置成特权级3只读了 
-	//所以先将gTaskBuff定义在内核区域外
-	gTaskBuff = (void*)0x40000;
+  //设置app使用的栈
+	for(i=0; i<MAX_TASK_BUFF_NUM; i++)
+	{
+		TaskNode* tn = (void*)AddrOff(gTaskBuff, i);
 
+		tn->task.stack = (void*)AddrOff(pStack, i * AppStackSize);
+	}
+  
 	gIdleTask = (void*)AddrOff(gTaskBuff, MAX_TASK_NUM);
 
 	//GetAppToRunEntry 强制转换为 uint 类型的指针，并获取其指向的值，再将该值强制转换为 void* 类型的指针。

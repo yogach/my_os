@@ -14,114 +14,109 @@ void TaskD();
 
 static void RegApp(const char* name, void(*tmain)(), byte pri)
 {
-		if( gAppNum < MAX_APP_NUM )
-		{
-		  AppInfo* app = AddrOff(gAppToRun, gAppNum);
+	if( gAppNum < MAX_APP_NUM )
+	{
+		AppInfo* app = AddrOff(gAppToRun, gAppNum);
 
-			app->name = name;
-			app->tmain = tmain;
-			app->priority = pri;
+		app->name = name;
+		app->tmain = tmain;
+		app->priority = pri;
 
-			gAppNum ++;
-		}
+		gAppNum ++;
+	}
 }
 
 void AppMain()
 {
-   RegApp("Task A", TaskA, 255);
-   RegApp("Task B", TaskB, 230);
-	 //RegApp("Task C", TaskC, 230);
-	 //RegApp("Task D", TaskD, 255);
+	RegApp("Task A", TaskA, 255);
+	RegApp("Task B", TaskB, 230);
+	RegApp("Task C", TaskC, 230);
+	//RegApp("Task D", TaskD, 255);
 }
 
 //按index得到一个AppInfo
 AppInfo* GetAppToRun(uint index)
 {
-   AppInfo* ret = NULL;
+	AppInfo* ret = NULL;
 
-	  if( index < MAX_APP_NUM )
-	 	{
-	 	   ret = AddrOff(gAppToRun, index);
-	 	}
+	if( index < MAX_APP_NUM )
+	{
+		ret = AddrOff(gAppToRun, index);
+	}
 
-		return ret;
+	return ret;
 }
 
 uint GetAppNum()
 {
-    return gAppNum;
+	return gAppNum;
 }
 
 void TaskA()
 {
-    int i = 0;
-	uint* p = (void*)0x50000;
-    
-    SetPrintPos(0, 12);
-    
-    PrintString(__FUNCTION__);
+	int i = 0;
 
-	*p = 1000;
+	SetPrintPos(0, 12);
 
-	//while(1);
-    
-    while( i < 5 )
-    {
-        SetPrintPos(8, 12);
-        PrintChar('A' + i);
-        i = (i + 1) % 26;
-        Delay(1);
-    }
-    SetPrintPos(8, 12);
+	PrintString(__FUNCTION__);
+
+	while( i < 5 )
+	{
+		SetPrintPos(8, 12);
+		PrintChar('A' + i);
+		i = (i + 1) % 26;
+		Delay(1);
+	}
+	SetPrintPos(8, 12);
 }
 
 void TaskB()
 {
-    int i = 0;
-    
-    SetPrintPos(0, 13);
-    
-    PrintString(__FUNCTION__);
-    
-    while(1)
-    {
-        SetPrintPos(8, 13);
-        PrintChar('0' + i);
-        i = (i + 1) % 10;
-        Delay(1);
-    }
+	int i = 0;
+
+	SetPrintPos(0, 13);
+
+	PrintString(__FUNCTION__);
+
+	while(1)
+	{
+		SetPrintPos(8, 13);
+		PrintChar('0' + i);
+		i = (i + 1) % 10;
+		Delay(1);
+	}
 }
 
 void TaskC()
 {
-    int i = 0;
-    
-    SetPrintPos(0, 14);
-    
-    PrintString(__FUNCTION__);
-    
-    while(1)
-    {
-        SetPrintPos(8, 14);
-        PrintChar('a' + i);
-        i = (i + 1) % 26;
-        Delay(1);
-    }
+	int i = 0;
+
+	SetPrintPos(0, 14);
+
+	PrintString(__FUNCTION__);
+
+	while(1)
+	{
+		SetPrintPos(8, 14);
+		PrintChar('a' + i);
+		i = (i + 1) % 26;
+		Delay(1);
+	}
 }
 
 void TaskD()
 {
-    int i = 0;
-    
-    SetPrintPos(0, 15);
-    
-    PrintString(__FUNCTION__);
-    
-    while(1)
-    {
-        SetPrintPos(8, 15);
-        PrintChar('!' + i);
-        i = (i + 1) % 10;
-        Delay(1);
-    }
+	int i = 0;
+
+	SetPrintPos(0, 15);
+
+	PrintString(__FUNCTION__);
+
+	while(1)
+	{
+		SetPrintPos(8, 15);
+		PrintChar('!' + i);
+		i = (i + 1) % 10;
+		Delay(1);
+	}
 }

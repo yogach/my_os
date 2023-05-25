@@ -52,7 +52,7 @@ typedef struct
 		ushort     current;
 		ushort     total;
     char       name[8]; 
-    byte       stack[512];   //任务使用的栈
+    byte*      stack;   //任务使用的栈
 } Task;
 
 typedef struct
