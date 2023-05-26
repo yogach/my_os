@@ -7,7 +7,8 @@
 #define MAX_RUNNING_TASK  2
 #define MAX_READY_TASK    (MAX_TASK_NUM - MAX_RUNNING_TASK)
 #define MAX_TASK_BUFF_NUM (MAX_TASK_NUM + 1)
-#define PID_BASE            0x10
+#define PID_BASE          0x10
+#define MAX_TIME_SLICE    260
 
 static AppInfo* (*GetAppToRun) (uint index) = NULL;
 static uint (*GetAppNum)() = NULL;
@@ -83,7 +84,7 @@ static void InitTask(Task* pt, uint id, const char* name, void(*entry)(), ushort
 	pt->tmain = entry;
 	pt->id    = id;
 	pt->current = 0;
-	pt->total = 256 - pri;
+	pt->total = MAX_TIME_SLICE - pri;
 
 	StrCpy(pt->name, name, sizeof(pt->name) - 1);
 
