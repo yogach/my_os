@@ -2,12 +2,13 @@
 #define UTILITY_H
 
 //这个的作用是统一内核内数组 指针的移位操作
-#define AddrOff(a, i) ((void*)((uint)a + i * sizeof(*a)))
+#define AddrOff(a, i) ((void*)((uint)(a) + (i) * sizeof(*(a))))
+#define AddrIndex(b, a) (((uint)(b) - (uint)(a))/sizeof(*(b)))
 
 #define IsEqual(a, b)   \
 ({                      \
-    unsigned ta = (unsigned)a; \
-    unsigned tb = (unsigned)b; \
+    unsigned ta = (unsigned)(a); \
+    unsigned tb = (unsigned)(b); \
     !(ta - tb);                \
 })
 
