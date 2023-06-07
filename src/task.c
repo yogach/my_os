@@ -90,8 +90,8 @@ static void InitTask(Task* pt, uint id, const char* name, void(*entry)(), ushort
 
 	//设置局部段描述符
 	SetDescValue(AddrOff(pt->ldt, LDT_VIDEO_INDEX),  0xB8000, 0x07FFF, DA_DRWA + DA_32 + DA_DPL3);
-	SetDescValue(AddrOff(pt->ldt, LDT_CODE32_INDEX), 0x00,    0x4FFFF, DA_C + DA_32 + DA_DPL3);
-	SetDescValue(AddrOff(pt->ldt, LDT_DATA32_INDEX), 0x00,    0x4FFFF, DA_DRW + DA_32 + DA_DPL3);
+	SetDescValue(AddrOff(pt->ldt, LDT_CODE32_INDEX), 0x00,    KernelHeapBase - 1, DA_C + DA_32 + DA_DPL3);
+	SetDescValue(AddrOff(pt->ldt, LDT_DATA32_INDEX), 0x00,    KernelHeapBase - 1, DA_DRW + DA_32 + DA_DPL3);
 
 	//设置选择子
 	pt->ldtSelector = GDT_TASK_LDT_SELECTOR;
@@ -200,7 +200,7 @@ static void RunningToReady()
 void TaskModInit()
 {
 	int i = 0;
-  byte* pStack = (byte*)(PageDirBase - (AppStackSize * MAX_TASK_BUFF_NUM)); //将app使用的栈定义在app区域的末尾
+  byte* pStack = (byte*)(AppHeapBase - (AppStackSize * MAX_TASK_BUFF_NUM)); //将app使用的栈定义在app区域的末尾
 
   //设置app使用的栈
 	for(i=0; i<MAX_TASK_BUFF_NUM; i++)

@@ -8,6 +8,7 @@ global AppModInit
 extern AppMain
 extern GetAppToRun
 extern GetAppNum
+extern MemModInit
 
 [section .text]
 [bits 32]
@@ -20,6 +21,14 @@ AppModInit: ; 0xf000
      ;将函数入口放入共享内存区 
      mov dword [GetAPPNumEntry], GetAppNum   
      mov dword [GetAppToRunEntry], GetAppToRun
+
+     ;c语言调用约定 参数从右到左入栈
+     push HeapSize
+     push AppHeapBase
+
+     call MemModInit  ;调用内存管理模块初始化
+
+     add esp, 8  ;清理栈帧
 
      call AppMain
      

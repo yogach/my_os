@@ -1,7 +1,11 @@
 
-;Page Base 定义页表存放的位置
-PageDirBase   equ   0x50000
-PageTblBase   equ   PageDirBase + 0x1000
+;Base Address
+HeapBase        equ   0x70000
+HeapSize        equ   0x20000
+KernelHeapBase  equ   HeapBase
+AppHeapBase     equ   HeapBase - HeapSize
+PageDirBase     equ   HeapBase + HeapSize
+PageTblBase     equ   PageDirBase + 0x1000
 
 ; Base Definition
 BaseOfBoot    equ   0x7c00

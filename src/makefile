@@ -9,11 +9,15 @@ KERNEL_SRC := kmain.c \
               interrupt.c \
               ihandler.c \
               list.c    \
-              queue.c 
+              queue.c   \
+              memory.c
 
 APP_SRC := screen.c   \
             utility.c  \
-            app.c      
+            app.c      \
+            list.c    \
+            queue.c   \
+            memory.c
               
 
 KERNEL_ADDR := B000

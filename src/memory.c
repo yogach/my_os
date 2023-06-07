@@ -147,7 +147,8 @@ static void* VMemAlloc(uint size)
 
 			current->free -= alloc;
 
-			List_AddAfter((ListNode*)current, (ListNode*)ret);
+      //将分配的节点插入到当前节点的后面
+			List_AddAfter((ListNode*)current, (ListNode*)ret); 
 
 			break;
 			
@@ -174,8 +175,10 @@ static int VMemFree(void* ptr)
 			{
 				 VMemHead* prev = (VMemHead*)(current->head.prev); //得到前一个链表节点
 
+         //将current节点内的所有空间都加到前一个节点中 
 				 prev->free += current->used + current->free + VM_HEAD_SIZE;
 
+         //删除当前节点
 				 List_DelNode((ListNode*) current);
 
 				 ret = 1;
@@ -188,140 +191,45 @@ static int VMemFree(void* ptr)
 	return ret;
 }
 
-void vmem_test()
+void MemModInit(byte* mem, uint size)
 {
-    static byte vmem[0x10000] = {0};
-    void* array[2000] = {0};
-    ListNode* pos = NULL;
-    int i = 0;
+	byte* fmem = mem;
+	uint fsize = size / 2;  //内存分为两份
+	byte* vmem = AddrOff(fmem, fsize);
+	uint vsize = size - fsize;
 
-		srand((unsigned)time(NULL));
-
-		VMemInit(vmem, sizeof(vmem));
-
-		List_ForEach(&gVMemList, pos)
-		{
-        VMemHead* current = (VMemHead*)pos;
-        
-        printf("i = %d\n", i++);
-        printf("used: %d\n", current->used);
-        printf("free: %d\n", current->free);
-        printf("\n");			
-		}
-
-    printf("Alloc Test:\n");
-    
-    i = 0;
-    
-    for(i=0; i<100000; i++)
-    {
-        int ii = i % 2000;
-        byte* p = VMemAlloc(1 + rand() % 400);
-        
-        if( array[ii] )
-        {
-            VMemFree(array[ii]);
-            
-            array[ii] = NULL; 
-        }
-        
-        array[ii] = p;
-        
-        if( i % 3 == 0 )
-        {
-            int index = rand() % 2000;
-            
-            VMemFree(array[index]);
-            
-            array[index] = NULL;
-        }
-    }
-    
-    printf("\n");
-    
-    printf("Free Test:\n");
-    
-    for(i=0; i<2000; i++)
-    {
-        VMemFree(array[i]);
-    }
-    
-    i = 0;
-    
-    List_ForEach(&gVMemList, pos)
-    {
-        VMemHead* current = (VMemHead*)pos;
-        
-        printf("i = %d\n", i++);
-        printf("used: %d\n", current->used);
-        printf("free: %d\n", current->free);
-        printf("\n");
-    }		
+	FMemInit(fmem, fsize);
+	VMemInit(vmem, vsize);
 }
 
-void fmem_test()
+void* Malloc(uint size)
 {
-	static byte fmem[0x10000] = {0};
-	static void* array[2000] = {0};
-	int i = 0;
+	void* ret = NULL;
 
-	FMemNode* pos = NULL;
+  //根据需要空间的大小 选择不同的分配方法
+  if( size <= FM_ALLOC_SIZE )
+  {
+		ret = FMemAlloc();
+  }
 
-	FMemInit(fmem, sizeof(fmem));
-
-	pos = gFMemList.node;
-
-	while( pos )
+	if( ret == NULL )
 	{
-		i++;
-		pos = pos->next;
+		ret = VMemAlloc(size);
 	}
 
-	printf("i = %d\n", i++);
-	
-  //随机进行alloc free
-	for(i=0; i<100000; i++)
-	{
-			int ii = i % 2000;
-			byte* p = FMemAlloc();
-			
-			if( array[ii] )
-			{
-					FMemFree(array[ii]);
-					
-					array[ii] = NULL; 
-			}
-			
-			array[ii] = p;
-			
-			if( i % 3 == 0 )
-			{
-					int index = rand() % 2000;
-					
-					FMemFree(array[index]);
-					
-					array[index] = NULL;
-			}
-	}
-	
-	for(i=0; i<2000; i++)
-	{
-			FMemFree(array[i]);
-	}
-	
-	i = 0;
-	
-	pos = gFMemList.node;
-	
-	while( pos )
-	{
-			i++;
-			pos = pos->next;
-	}
-	
-	printf("i = %d\n", i++);
+	return ret;
+}
 
-	
+void Free(void* ptr)
+{
+	if( ptr )
+	{
+		//首先尝试使用定长内存释放 如果失败则使用变长内存释放
+		if( !FMemFree(ptr) )
+		{
+			VMemFree(ptr);
+		}
+	}
 }
 
 

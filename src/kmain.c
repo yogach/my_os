@@ -1,7 +1,7 @@
 #include "screen.h"
 #include "task.h"
 #include "interrupt.h"
-#include "app.h"
+#include "memory.h"
 
 void KMain()
 {
@@ -24,6 +24,8 @@ void KMain()
     PrintString("IDT Size: ");
     PrintIntDec((uint)gIdtInfo.size);
     PrintChar('\n');
+
+		MemModInit(KernelHeapBase, HeapSize);
 
 		AppModInit();
     
