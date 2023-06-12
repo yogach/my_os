@@ -143,9 +143,15 @@ EndISR
 ;
 SysCallHandlerEntry:
 BeginISR
-    push ax   ;将参数压入栈
+    push edx   ;将参数压入栈 参数遵循从右到左的顺序入栈
+    push ecx
+    push ebx 
+    push eax
     call SysCallHandler
-    pop ax
+    pop eax
+    pop ebx
+    pop ecx
+    pop edx
 EndISR
 
 ;

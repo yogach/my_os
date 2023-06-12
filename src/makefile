@@ -10,14 +10,16 @@ KERNEL_SRC := kmain.c \
               ihandler.c \
               list.c    \
               queue.c   \
-              memory.c
+              memory.c  \
+              mutex.c
 
 APP_SRC := screen.c   \
             utility.c  \
             app.c      \
             list.c    \
             queue.c   \
-            memory.c
+            memory.c  \
+            syscall.c 
               
 
 KERNEL_ADDR := B000

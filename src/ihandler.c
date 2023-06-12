@@ -16,12 +16,19 @@ void TimerHandler()
     SendEOI(MASTER_EOI_PORT); //发送中断结束标志
 }
 
-void SysCallHandler(ushort ax)
+void SysCallHandler(uint type, uint cmd, uint param1, uint param2 ) // __cdecl__
 {
-	  if( ax == 0 )
-	  {
-		KillTask();
-	  }
+   switch(type)
+   {
+	 	 case 0:
+		 	KillTask();
+			break;
+		 case 1:
+		 	MutexCallHandler(cmd, param1);
+			break;
+		 default:
+		 	break;
+   }
 }
 
 void PageFaultHandler()

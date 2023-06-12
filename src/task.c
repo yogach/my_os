@@ -38,7 +38,7 @@ static void TaskEntry()
 	//调用0x80中断
 	// to destory current task here
 	asm volatile(
-	    "movw $0, %ax \n"
+	    "movl $0, %eax \n"
 
 	    "int $0x80 \n"
 	);

@@ -55,25 +55,21 @@ uint GetAppNum()
 
 void TaskA()
 {
-	int i = 0;
-	uint* p = NULL;
-
-	SetPrintPos(0, 12);
-
-	PrintString(__FUNCTION__);
-  PrintChar('\n');
-  
-  p = (uint*)Malloc(sizeof(uint));
-  
-  PrintIntHex(p);
-  PrintChar('\n');
-  
-  *p = 6666;
-  
-  PrintIntDec(*p);
-  PrintChar('\n');
-  
-  Free(p);
+    int i = 0;
+    uint mutex = 0;
+    
+    SetPrintPos(0, 12);
+    
+    PrintString(__FUNCTION__);
+    PrintChar('\n');
+    
+    mutex = CreateMutex();
+    
+    EnterCritical(mutex);
+    
+    ExitCritical(mutex);
+    
+    DestroyMutex(mutex);
 }
 
 void TaskB()

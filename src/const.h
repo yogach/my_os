@@ -12,7 +12,6 @@
 #define PageDirBase       (HeapBase + HeapSize)
 #define PageTblBase       (PageDirBase + 0x1000)
 
-
 #define AppStackSize  512
 
 #define BaseOfKernel  0xB000

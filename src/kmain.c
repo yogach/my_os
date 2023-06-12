@@ -2,6 +2,7 @@
 #include "task.h"
 #include "interrupt.h"
 #include "memory.h"
+#include "mutex.h"
 
 void KMain()
 {
@@ -26,6 +27,8 @@ void KMain()
     PrintChar('\n');
 
 		MemModInit(KernelHeapBase, HeapSize);
+
+		MutexModInit();
 
 		AppModInit();
     
