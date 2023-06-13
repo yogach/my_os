@@ -64,7 +64,11 @@ void TaskA()
     PrintChar('\n');
     
     mutex = CreateMutex();
-    
+
+		PrintString("Mutex ID: ");
+		PrintIntHex(mutex);
+		PrintChar('\n');
+	
     EnterCritical(mutex);
     
     ExitCritical(mutex);
