@@ -11,6 +11,7 @@ typedef struct
 	uint lock;     //锁状态
 } Mutex;
 
+
 void MutexModInit();
 void MutexCallHandler(uint cmd, uint param);
 

@@ -3,6 +3,7 @@
 #include "queue.h"
 #include "app.h"
 
+
 #define MAX_TASK_NUM      4
 #define MAX_RUNNING_TASK  2
 #define MAX_READY_TASK    (MAX_TASK_NUM - MAX_RUNNING_TASK)
@@ -41,9 +42,7 @@ static void TaskEntry()
 	    "movl $0, %eax \n"
 
 	    "int $0x80 \n"
-	);
-
-	//while(1); // TODO: schedule next task to run
+	);	
 }
 
 //空闲任务 用于在没有任务执行时使用
@@ -197,6 +196,39 @@ static void RunningToReady()
 	}
 }
 
+static void RunningToWaitting()
+{
+	if( Queue_Length(&gRunningTask) > 0 )
+	{
+
+		TaskNode* tn = (TaskNode*)Queue_Front(&gRunningTask);
+
+		//非idletask任务才需要进行调度
+		if( !IsEqual(tn, (QueueNode*)gIdleTask) )
+		{
+
+			Queue_Remove(&gRunningTask);
+			Queue_Add(&gWaittingTask, (QueueNode*)tn);
+
+		}
+	}
+
+}
+
+static void WaittingToReady()
+{
+	//将等待队列中的所有任务都重新加载到就绪队列
+	while( Queue_Length(&gWaittingTask) > 0 )
+	{
+
+		TaskNode* tn = (TaskNode*)Queue_Front(&gWaittingTask);
+
+		Queue_Remove(&gWaittingTask);
+		Queue_Add(&gReadyTask, (QueueNode*)tn);
+	}
+}
+
+
 void TaskModInit()
 {
 	int i = 0;
@@ -246,6 +278,32 @@ void LaunchTask()
 	//启动任务
 	RunTask(gCTaskAddr);
 }
+
+void MtxSchedule(uint action)
+{
+	//当锁状态为等待时 将当前执行任务调度到等待队列中
+	if( IsEqual(action, WAIT) )
+	{
+		RunningToWaitting();
+
+		ReadyToRunning();
+
+		CheckRunningTask();
+
+		Queue_Rotate(&gRunningTask); //循环 将头节点放入尾部
+
+		gCTaskAddr = &((TaskNode*)Queue_Front(&gRunningTask))->task;
+
+		PrepareForRun(gCTaskAddr);
+
+		LoadTask(gCTaskAddr);		
+	}
+	else if( IsEqual(action, NOTIFY) )
+	{
+		WaittingToReady();
+	}
+}
+
 
 //任务调度函数 位于时钟中断内
 void Schedule()
