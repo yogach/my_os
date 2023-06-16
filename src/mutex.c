@@ -10,11 +10,11 @@ void MutexModInit()
 	List_Init(&gMList);
 }
 
-void MutexCallHandler(uint cmd, uint param)
+void MutexCallHandler(uint cmd, uint param1, uint param2)
 {
 	if( cmd == 0 )
 	{
-		uint* pRet = (uint*)param;
+		uint* pRet = (uint*)param1;
 
     //将进程锁的地址放入 param对应的地址中 
     //param是用户空间的传入值
@@ -22,15 +22,15 @@ void MutexCallHandler(uint cmd, uint param)
 	}
 	else if( cmd == 1 )
 	{
-    SysEnterCritical((Mutex*)param);
+    SysEnterCritical((Mutex*)param1, (uint*)param2);
 	}
 	else if( cmd == 2 )
 	{
-    SysExitCritical((Mutex*)param);
+    SysExitCritical((Mutex*)param1);
 	}
 	else
 	{
-    SysDestoryMutex((Mutex*)param);
+    SysDestoryMutex((Mutex*)param1);
 	}
 }
 
@@ -95,18 +95,23 @@ void SysDestoryMutex(Mutex* mutex)
 	}
 }
 
-void SysEnterCritical(Mutex* mutex)
+void SysEnterCritical(Mutex* mutex, uint* wait)
 {
 	if( mutex && IsMutexValid(mutex) )
 	{
 		if( mutex->lock )
 		{
+			*wait = 1;
+			
 			PrintString("Move current to waitting status.\n");
+			
 			MtxSchedule(WAIT);
 		}
 		else
 		{
 			mutex->lock = 1;
+			
+			*wait = 0;
 
 			PrintString("Enter critical section, access critical resource.\n");
 		}

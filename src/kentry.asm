@@ -39,9 +39,9 @@ extern SegmentFaultHandler
    push fs
    push gs
    
-   mov dx, ss   
-   mov ds, dx
-   mov es, dx
+   mov si, ss   
+   mov ds, si
+   mov es, si
    
    mov esp, BaseOfLoader   ;完成保存现场之后重新设置内核栈
 %endmacro
@@ -78,9 +78,9 @@ extern SegmentFaultHandler
    push fs
    push gs
    
-   mov dx, ss   
-   mov ds, dx
-   mov es, dx
+   mov si, ss   
+   mov ds, si
+   mov es, si
    
    mov esp, BaseOfLoader   ;完成保存现场之后重新设置内核栈
 %endmacro

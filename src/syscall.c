@@ -1,72 +1,52 @@
 
 #include "syscall.h"
 
+
+#define SysCall(type, cmd, param1, param2)  	asm volatile(                                \
+	                                                           "movl $" #type ", %%eax \n"   \
+	                                                           "movl $" #cmd  ", %%ebx \n"   \  
+	                                                           "movl %0,         %%ecx \n"   \
+	                                                           "movl %1,         %%edx \n"   \
+	                                                           "int $0x80     \n"            \
+	                                                           :                             \
+	                                                           : "r"(param1), "r"(param2)    \                   
+			                                                       : "eax", "ebx", "ecx", "edx"  \  
+	                                                         )
+
 void Exit()
 {
-  int i;
-
-	asm volatile(
-	    "movl $0, %eax \n"   //type
-	    "int  $0x80     \n"
-	);	
+  SysCall(0, 0, 0, 0);
 }
 
 uint CreateMutex()
 {
 	volatile uint ret = 0;
 
-	PrintString("&ret = ");
-	PrintIntHex(&ret);
-	
-	asm volatile(
-	    "movl $1, %%eax \n"   //type  $1 代表立即数
-	    "movl $0, %%ebx \n"   //cmd 
-	    "movl %0, %%ecx \n"   //param1  %0 代表传入变量
-	    "int $0x80     \n"
-	    : 
-	    : "r"(&ret)                   //"r" 定义为一个输入操作数 并且使用 &ret 取得了ret变量的地址
-			: "eax", "ebx", "ecx", "edx"  //告诉编译器哪些寄存器在内联汇编代码块中被修改或使用，并防止编译器在代码优化时将这些寄存器中的值保留下来，从而避免出现未定义行为
-	);	
+	SysCall(1, 0, &ret, 0);		
 
 	return ret;
 }
 
 void EnterCritical(uint mutex)
 {
-	asm volatile(
-	    "movl $1, %%eax \n"   //type  $1 代表立即数
-	    "movl $1, %%ebx \n"   //cmd 
-	    "movl %0, %%ecx \n"   //param1  %0 代表传入变量
-	    "int $0x80     \n"
-	    : 
-	    : "r"(mutex)                   
-			: "eax", "ebx", "ecx", "edx"  
-	);	 
+  volatile uint wait = 0;
+
+	//反复查询是否能进临界区 
+	//当有任务退出临界区时 剩余的任务需要重新查询是否能进入临界区
+	do
+	{
+	  SysCall(1, 1, mutex, &wait);
+	} while( wait );
+	
 }
 
 void ExitCritical(uint mutex)
 {
-	asm volatile(
-	    "movl $1, %%eax \n"   //type  $1 代表立即数
-	    "movl $2, %%ebx \n"   //cmd 
-	    "movl %0, %%ecx \n"   //param1  %0 代表传入变量
-	    "int $0x80     \n"
-	    : 
-	    : "r"(mutex)                   
-			: "eax", "ebx", "ecx", "edx"  
-	);	
+	SysCall(1, 2, mutex, 0);		
 }
 
 void DestroyMutex(uint mutex)
 {
-	asm volatile(
-	    "movl $1, %%eax \n"   //type  $1 代表立即数
-	    "movl $3, %%ebx \n"   //cmd 
-	    "movl %0, %%ecx \n"   //param1  %0 代表传入变量
-	    "int $0x80     \n"
-	    : 
-	    : "r"(mutex)                   
-			: "eax", "ebx", "ecx", "edx"  
-	);	
+	SysCall(1, 3, mutex, 0);		
 }
 

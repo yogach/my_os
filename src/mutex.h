@@ -13,11 +13,11 @@ typedef struct
 
 
 void MutexModInit();
-void MutexCallHandler(uint cmd, uint param);
+void MutexCallHandler(uint cmd, uint param1, uint param2);
 
 Mutex* SysCreateMutex();
 void SysDestoryMutex(Mutex* mutex);
-void SysEnterCritical(Mutex* mutex);
+void SysEnterCritical(Mutex* mutex, uint* wait);
 void SysExitCritical(Mutex* mutex);
 
 #endif
