@@ -80,11 +80,13 @@ all : $(DIRS)  $(IMG) $(BOOT_OUT) $(LOADER_OUT) $(KERNEL_OUT) $(APP_OUT)
 
 #指定参数all和不指定参数时 需要包含$(DEPS)
 ifeq ("$(MAKECMDGOALS)", "all")
--include $(KERNEL_DEPS) $(APP_DEPS)
+-include $(KERNEL_DEPS) 
+-include $(APP_DEPS)
 endif
 
 ifeq ("$(MAKECMDGOALS)", "")
--include $(KERNEL_DEPS) $(APP_DEPS)
+-include $(KERNEL_DEPS) 
+-include $(APP_DEPS)
 endif
 
 $(IMG) :

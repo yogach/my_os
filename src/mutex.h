@@ -16,7 +16,7 @@ void MutexModInit();
 void MutexCallHandler(uint cmd, uint param1, uint param2);
 
 Mutex* SysCreateMutex();
-void SysDestoryMutex(Mutex* mutex);
+void SysDestroyMutex(Mutex* mutex, uint* result);
 void SysEnterCritical(Mutex* mutex, uint* wait);
 void SysExitCritical(Mutex* mutex);
 

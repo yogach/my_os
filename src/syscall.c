@@ -4,13 +4,13 @@
 
 #define SysCall(type, cmd, param1, param2)  	asm volatile(                                \
 	                                                           "movl $" #type ", %%eax \n"   \
-	                                                           "movl $" #cmd  ", %%ebx \n"   \  
+	                                                           "movl $" #cmd  ", %%ebx \n"   \
 	                                                           "movl %0,         %%ecx \n"   \
 	                                                           "movl %1,         %%edx \n"   \
 	                                                           "int $0x80     \n"            \
 	                                                           :                             \
-	                                                           : "r"(param1), "r"(param2)    \                   
-			                                                       : "eax", "ebx", "ecx", "edx"  \  
+	                                                           : "r"(param1), "r"(param2)    \
+			                                                       : "eax", "ebx", "ecx", "edx"  \
 	                                                         )
 
 void Exit()
@@ -42,11 +42,15 @@ void EnterCritical(uint mutex)
 
 void ExitCritical(uint mutex)
 {
-	SysCall(1, 2, mutex, 0);		
+	SysCall(1, 2, mutex, 0);
 }
 
-void DestroyMutex(uint mutex)
+uint DestroyMutex(uint mutex)
 {
-	SysCall(1, 3, mutex, 0);		
+  uint ret = 0;
+
+	SysCall(1, 3, mutex, &ret);
+
+	return ret;
 }
 

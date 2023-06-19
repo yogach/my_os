@@ -5,6 +5,8 @@
 
 static List gMList = {0};
 
+extern volatile Task* gCTaskAddr;
+
 void MutexModInit()
 {
 	List_Init(&gMList);
@@ -18,7 +20,7 @@ void MutexCallHandler(uint cmd, uint param1, uint param2)
 
     //将进程锁的地址放入 param对应的地址中 
     //param是用户空间的传入值
-		*pRet = (uint*)SysCreateMutex();
+		*pRet = (uint)SysCreateMutex();
 	}
 	else if( cmd == 1 )
 	{
@@ -30,7 +32,7 @@ void MutexCallHandler(uint cmd, uint param1, uint param2)
 	}
 	else
 	{
-    SysDestoryMutex((Mutex*)param1);
+    SysDestroyMutex((Mutex*)param1, (uint*)param2);
 	}
 }
 
@@ -71,23 +73,31 @@ static uint IsMutexValid(Mutex* mutex)
 	return ret;
 }
 
-void SysDestoryMutex(Mutex* mutex)
+void SysDestroyMutex(Mutex* mutex, uint* result)
 {
 	if( mutex )
 	{
 		ListNode* pos = NULL;
+
+		*result = 0;
 
 		//检测链表中是否含有这个mutex
 	  List_ForEach(&gMList, pos)
 		{
 			if( IsEqual(pos, mutex) )
 			{
-				List_DelNode((ListNode*)pos);
+				//只有锁已经是释放状态 才能销毁这个锁
+				if( IsEqual(mutex->lock, 0) )
+				{
+					List_DelNode((ListNode*)pos);
 
-				Free(pos);
+					Free(pos);
 
-				PrintString("Destroy Mutex: ");
-				PrintIntHex(pos);
+					*result = 1;
+
+					PrintString("Destroy Mutex: ");
+					PrintIntHex(pos);
+				}
 
 				break;
 			}
@@ -101,15 +111,25 @@ void SysEnterCritical(Mutex* mutex, uint* wait)
 	{
 		if( mutex->lock )
 		{
-			*wait = 1;
-			
-			PrintString("Move current to waitting status.\n");
-			
-			MtxSchedule(WAIT);
+			//同一个任务可以反复的获取锁 而不会进休眠
+      if( IsEqual(mutex->lock, gCTaskAddr) )
+      {
+				*wait = 0;
+      }
+			else
+			{
+		
+				*wait = 1;
+				
+				PrintString("Move current to waitting status.\n");
+				
+				MtxSchedule(WAIT);
+
+			}
 		}
 		else
 		{
-			mutex->lock = 1;
+			mutex->lock = (uint)gCTaskAddr;  //进入临界区时 使用任务地址作为标识
 			
 			*wait = 0;
 
@@ -120,12 +140,25 @@ void SysEnterCritical(Mutex* mutex, uint* wait)
 
 void SysExitCritical(Mutex* mutex)
 {
+  PrintString("enter exit\n");
+
 	if( mutex && IsMutexValid(mutex) )
 	{
-		mutex->lock = 0;
+		//释放锁时 如果是任务地址标识不对 则kill掉对应任务
+    if( IsEqual(mutex->lock, gCTaskAddr) )
+    {
+	
+			mutex->lock = 0;
 
-		PrintString("Notify all task to run again, critical resource is available.\n");
-		MtxSchedule(NOTIFY);
+			PrintString("Notify all task to run again, critical resource is available.\n");
+			MtxSchedule(NOTIFY);
+		
+    }
+		else
+		{
+			PrintString("enter killtask\n");
+			KillTask();
+		}
 	}
 }
 

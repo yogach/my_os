@@ -2,6 +2,7 @@
 #include "app.h"
 #include "utility.h"
 #include "memory.h"
+#include "syscall.h"
 
 #define MAX_APP_NUM   16
 
@@ -65,6 +66,9 @@ void TaskA()
     
     g_mutex = CreateMutex();
 
+    //测试多次获取一个锁
+    EnterCritical(g_mutex);
+    EnterCritical(g_mutex);
     EnterCritical(g_mutex);
     
     for(i=0; i<50; i++)
@@ -80,23 +84,39 @@ void TaskA()
 void TaskB()
 {
 	SetPrintPos(0, 16);
-
+	
 	PrintString(__FUNCTION__);
-	PrintChar('\n');
+	PrintChar('\n');  
+
+  //ExitCritical(g_mutex);  //测试没有获取锁时 释放锁
 
   EnterCritical(g_mutex);
   
   i = 0;
   
-  while(1)
-  {
-      SetPrintPos(8, 16);
-      PrintChar('0' + i);
-      i = (i + 1) % 10;
-      Delay(1);
-  }
-  
-  ExitCritical(g_mutex);
+	while(0)
+	{
+			SetPrintPos(8, 16);
+			PrintChar('0' + i);
+			i = (i + 1) % 10;
+			Delay(1);
+	}
+	
+	SetPrintPos(8, 16);
+
+	//测试没有释放锁时 销毁锁	
+	i = DestroyMutex(g_mutex);
+	
+	PrintIntDec(i);
+	PrintChar('\n');
+	
+	ExitCritical(g_mutex);
+	
+	i = DestroyMutex(g_mutex);
+	
+	PrintIntDec(i);
+	PrintChar('\n');
+
 }
 
 void TaskC()

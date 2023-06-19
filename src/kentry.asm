@@ -29,6 +29,8 @@ extern SegmentFaultHandler
 
 ;定义宏 0 代表不需要参数
 %macro BeginISR  0
+   cli      ;关闭中断
+    
    sub esp, 4  ;跳过RegValue的raddr
    
    ; 通用寄存器压栈 保存现场
