@@ -47,11 +47,6 @@ Mutex* SysCreateMutex()
 		List_Add(&gMList, (ListNode *)ret);
 	}
 
-	PrintString("Mutex ID: ");
-	PrintIntHex(ret);
-	PrintChar('\n');
-
-
 	return ret;
 }
 
@@ -95,8 +90,6 @@ void SysDestroyMutex(Mutex* mutex, uint* result)
 
 					*result = 1;
 
-					PrintString("Destroy Mutex: ");
-					PrintIntHex(pos);
 				}
 
 				break;
@@ -120,9 +113,7 @@ void SysEnterCritical(Mutex* mutex, uint* wait)
 			{
 		
 				*wait = 1;
-				
-				PrintString("Move current to waitting status.\n");
-				
+								
 				MtxSchedule(WAIT);
 
 			}
@@ -132,15 +123,12 @@ void SysEnterCritical(Mutex* mutex, uint* wait)
 			mutex->lock = (uint)gCTaskAddr;  //进入临界区时 使用任务地址作为标识
 			
 			*wait = 0;
-
-			PrintString("Enter critical section, access critical resource.\n");
 		}
 	}
 }
 
 void SysExitCritical(Mutex* mutex)
 {
-  PrintString("enter exit\n");
 
 	if( mutex && IsMutexValid(mutex) )
 	{
@@ -149,14 +137,12 @@ void SysExitCritical(Mutex* mutex)
     {
 	
 			mutex->lock = 0;
-
-			PrintString("Notify all task to run again, critical resource is available.\n");
+			
 			MtxSchedule(NOTIFY);
 		
     }
 		else
 		{
-			PrintString("enter killtask\n");
 			KillTask();
 		}
 	}

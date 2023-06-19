@@ -3,6 +3,7 @@
 #include "utility.h"
 #include "memory.h"
 #include "syscall.h"
+#include "demo1.h"
 
 #define MAX_APP_NUM   16
 
@@ -33,10 +34,14 @@ static void RegApp(const char* name, void(*tmain)(), byte pri)
 
 void AppMain()
 {
-	RegApp("Task A", TaskA, 255);
-	RegApp("Task B", TaskB, 255);
+	//RegApp("Task A", TaskA, 255);
+	//RegApp("Task B", TaskB, 255);
 	//RegApp("Task C", TaskC, 255);
 	//RegApp("Task D", TaskD, 255);
+	RegApp("PA", ProducerA, 255);
+	RegApp("PB", ProducerB, 255);
+	RegApp("CA", ConsumerA, 255);
+	RegApp("CB", ConsumerB, 255);	
 }
 
 //按index得到一个AppInfo
