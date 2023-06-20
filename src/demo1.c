@@ -64,7 +64,7 @@ void ProducerA()
     int next = 0;
     int run = 1;
     
-    g_mutex = CreateMutex();
+    g_mutex = CreateMutex(Strict);
     
     List_Init(&g_store);
     

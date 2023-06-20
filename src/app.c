@@ -4,6 +4,7 @@
 #include "memory.h"
 #include "syscall.h"
 #include "demo1.h"
+#include "demo2.h"
 
 #define MAX_APP_NUM   16
 
@@ -38,10 +39,14 @@ void AppMain()
 	//RegApp("Task B", TaskB, 255);
 	//RegApp("Task C", TaskC, 255);
 	//RegApp("Task D", TaskD, 255);
-	RegApp("PA", ProducerA, 255);
-	RegApp("PB", ProducerB, 255);
-	RegApp("CA", ConsumerA, 255);
-	RegApp("CB", ConsumerB, 255);	
+	//RegApp("PA", ProducerA, 255);
+	//RegApp("PB", ProducerB, 255);
+	//RegApp("CA", ConsumerA, 255);
+	//RegApp("CB", ConsumerB, 255);	
+	RegApp("WA", Writer, 255);
+	RegApp("RA", Reader, 255);
+	RegApp("RB", Reader, 255);
+	RegApp("RC", Reader, 255);		
 }
 
 //按index得到一个AppInfo
@@ -69,7 +74,7 @@ void TaskA()
     PrintString(__FUNCTION__);
     PrintChar('\n');
     
-    g_mutex = CreateMutex();
+    g_mutex = CreateMutex(Strict);
 
     //测试多次获取一个锁
     EnterCritical(g_mutex);
