@@ -42,7 +42,7 @@ static void TaskEntry()
 	    "movl $0, %eax \n"
 
 	    "int $0x80 \n"
-	);	
+	);
 }
 
 //空闲任务 用于在没有任务执行时使用
