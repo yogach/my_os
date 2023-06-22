@@ -43,18 +43,10 @@ static void RegApp(const char* name, void(*tmain)(), byte pri)
 
 void AppMain()
 {
-	//RegApp("Task A", TaskA, 255);
+	RegApp("Task A", TaskA, 255);
 	//RegApp("Task B", TaskB, 255);
 	//RegApp("Task C", TaskC, 255);
 	//RegApp("Task D", TaskD, 255);
-//	RegApp("WA", Writer, 255);
-//	RegApp("RA", Reader, 255);
-//	RegApp("RB", Reader, 255);
-//	RegApp("RC", Reader, 255);
-	RegApp("CookRice", CookRice, 255);
-	RegApp("CookDish", CookDish, 255);
-	RegApp("HaveDinner", HaveDinner, 255);
-
 }
 
 //按index得到一个AppInfo
@@ -140,21 +132,14 @@ void TaskA()
     PrintString(__FUNCTION__);
     PrintChar('\n');
     
-    g_mutex = CreateMutex(Strict);
-
-    //测试多次获取一个锁
-    EnterCritical(g_mutex);
-    EnterCritical(g_mutex);
-    EnterCritical(g_mutex);
+    PrintIntDec(StrLen("a"));
+    PrintChar('\n');
     
-    for(i=0; i<50; i++)
-    {
-        SetPrintPos(8, 12);
-        PrintChar('A' + i % 26);
-        Delay(1);
-    }		
+    char a[] = "abcd";
+    char b[] = "abc";
     
-    ExitCritical(g_mutex);    
+    PrintIntDec(StrCmp(a, b, 3));
+    PrintChar('\n');  
 }
 
 void TaskB()

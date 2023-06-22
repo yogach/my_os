@@ -1,9 +1,16 @@
 #ifndef UTILITY_H
 #define UTILITY_H
 
+#include "type.h"
+
+
 //这个的作用是统一内核内数组 指针的移位操作
 #define AddrOff(a, i) ((void*)((uint)(a) + (i) * sizeof(*(a))))
 #define AddrIndex(b, a) (((uint)(b) - (uint)(a))/sizeof(*(b)))
+
+#define Max(a, b) ( (a) > (b) ? (a) : (b) )
+#define Min(a, b) ( (a) < (b) ? (a) : (b) )
+
 
 #define IsEqual(a, b)   \
 ({                      \
@@ -25,4 +32,7 @@
 
 void Delay(int n);
 char* StrCpy(char* dst, const char* src, int n);
+int StrLen(const char* s);
+int StrCmp(const char* left, const char* right, uint n);
+
 #endif
