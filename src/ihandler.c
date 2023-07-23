@@ -21,7 +21,7 @@ void SysCallHandler(uint type, uint cmd, uint param1, uint param2 ) // __cdecl__
    switch(type)
    {
 	 	 case 0:
-		 	KillTask();
+		 	TaskCallHandler(cmd, param1, param2);
 			break;
 		 case 1:
 		 	MutexCallHandler(cmd, param1, param2);

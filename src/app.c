@@ -14,8 +14,7 @@ static uint gAppNum = 0;
 int i = 0;
 uint g_mutex = 0;
 
-uint g_mutex_rice = 0;
-uint g_mutex_dish = 0;
+
 
 void TaskA();
 void TaskB();
@@ -43,10 +42,13 @@ static void RegApp(const char* name, void(*tmain)(), byte pri)
 
 void AppMain()
 {
-	RegApp("Task A", TaskA, 255);
+	//RegApp("Task A", TaskA, 255);
 	//RegApp("Task B", TaskB, 255);
 	//RegApp("Task C", TaskC, 255);
 	//RegApp("Task D", TaskD, 255);
+    RegApp("CookRice", CookRice, 255);
+    RegApp("CookDish", CookDish, 255);
+    RegApp("HaveDinner", HaveDinner, 255);
 }
 
 //按index得到一个AppInfo
@@ -76,10 +78,6 @@ void CookRice()
 	PrintString(__FUNCTION__);
 	PrintChar('\n');
 
-	g_mutex_rice = CreateMutex(Normal);
-
-	EnterCritical(g_mutex_rice);
-
 	for(i=0; i<50; i++)
 	{
 			SetPrintPos(10, 12);
@@ -87,7 +85,6 @@ void CookRice()
 			Delay(1);
 	}
 
-	ExitCritical(g_mutex_rice);
 }
 
 void CookDish()
@@ -99,30 +96,24 @@ void CookDish()
 	PrintString(__FUNCTION__);
 	PrintChar('\n');
 
-	g_mutex_dish = CreateMutex(Normal);
-
-	EnterCritical(g_mutex_dish);
-
 	for(i=0; i<30; i++)
 	{
 			SetPrintPos(10, 14);
-			PrintChar('0' + i % 26);
+			PrintChar('0' + i % 10);
 			Delay(1);
 	}
 
-	ExitCritical(g_mutex_dish);	
+
 }
 
 void HaveDinner()
 {
-	EnterCritical(g_mutex_rice);
-	EnterCritical(g_mutex_dish);
+  Wait("CookDish");
+  Wait("CookRice");
 
 	SetPrintPos(10, 16);
 	PrintString("Having dinner...\n");
 	
-	ExitCritical(g_mutex_dish);
-	ExitCritical(g_mutex_rice);
 }
 
 void TaskA()

@@ -39,7 +39,7 @@ typedef struct
 //Task 用于描述一个任务的所有信息
 typedef struct
 {
-	  //需注意这几个变量的顺序不要改 改变后导致实际任务运行失败 在RunTask里按固定值加载
+	  //需注意这几个变量的顺序不要改 改变后会导致实际任务运行失败 在RunTask里按固定值加载
     RegValue   rv;           //寄存器列表
     Descriptor ldt[3];       //局部段描述符表
     //TSS        tss;          //任务段 主要功能是用于记录各特权级的栈信息    
@@ -51,7 +51,8 @@ typedef struct
     uint       id;
 		ushort     current;
 		ushort     total;
-    char       name[8]; 
+    char       name[16];
+    Queue      wait;    //增加任务等待链表 将需要等到本任务运行的任务加入此
     byte*      stack;   //任务使用的栈
 } Task;
 
@@ -76,6 +77,8 @@ void LaunchTask();
 void Schedule();
 void MtxSchedule(uint action);
 void KillTask();
+void TaskCallHandler(uint cmd, uint param1, uint param2 );
+void WaitTask(const char* name);
 
 
 #endif

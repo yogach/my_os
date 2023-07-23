@@ -86,6 +86,8 @@ static void InitTask(Task* pt, uint id, const char* name, void(*entry)(), ushort
 	pt->total = MAX_TIME_SLICE - pri;
 
 	StrCpy(pt->name, name, sizeof(pt->name) - 1);
+	
+	Queue_Init(&pt->wait);
 
 	//设置局部段描述符
 	SetDescValue(AddrOff(pt->ldt, LDT_VIDEO_INDEX),  0xB8000, 0x07FFF, DA_DRWA + DA_32 + DA_DPL3);
@@ -96,6 +98,32 @@ static void InitTask(Task* pt, uint id, const char* name, void(*entry)(), ushort
 	pt->ldtSelector = GDT_TASK_LDT_SELECTOR;
 	pt->tssSelector = GDT_TASK_TSS_SELECTOR;
 
+}
+
+static Task* FindTaskByName(const char* name)
+{
+  Task* ret = NULL;
+
+  //等待的任务不能是IdleTask
+  if( !StrCmp(name, "IdleTask", -1) )
+  {
+    int i = 0;
+
+    for(i=0; i<MAX_TASK_BUFF_NUM; i++)
+    {
+       TaskNode* tn = AddrOff(gTaskBuff, i);
+
+       //存在id 代表任务已被创建
+       if( tn->task.id && StrCmp(tn->task.name, name, -1) )
+       {
+          ret = &tn->task;
+          break;
+       }
+    }
+  
+  }  
+
+  return ret;
 }
 
 //任务准备执行
@@ -196,34 +224,33 @@ static void RunningToReady()
 	}
 }
 
-static void RunningToWaitting()
+static void RunningToWaitting(Queue* wq)
 {
 	if( Queue_Length(&gRunningTask) > 0 )
 	{
 
-		TaskNode* tn = (TaskNode*)Queue_Front(&gRunningTask);
+		TaskNode* tn = (TaskNode*)Queue_Front(&gRunningTask); //得到执行队列的首节点 放入到指定队列
 
 		//非idletask任务才需要进行调度
 		if( !IsEqual(tn, (QueueNode*)gIdleTask) )
 		{
 
 			Queue_Remove(&gRunningTask);
-			Queue_Add(&gWaittingTask, (QueueNode*)tn);
+			Queue_Add(wq, (QueueNode*)tn);
 
 		}
 	}
 
 }
 
-static void WaittingToReady()
+static void WaittingToReady(Queue* wq)
 {
-	//将等待队列中的所有任务都重新加载到就绪队列
-	while( Queue_Length(&gWaittingTask) > 0 )
+	//将指定队列中的所有任务都重新加载到就绪队列
+	while( Queue_Length(wq) > 0 )
 	{
+		TaskNode* tn = (TaskNode*)Queue_Front(wq);
 
-		TaskNode* tn = (TaskNode*)Queue_Front(&gWaittingTask);
-
-		Queue_Remove(&gWaittingTask);
+		Queue_Remove(wq);
 		Queue_Add(&gReadyTask, (QueueNode*)tn);
 	}
 }
@@ -269,6 +296,21 @@ void TaskModInit()
 
 }
 
+static void ScheduleNext()
+{
+	ReadyToRunning();
+	
+	CheckRunningTask();
+	
+	Queue_Rotate(&gRunningTask); //循环 将头节点放入尾部
+	
+	gCTaskAddr = &((TaskNode*)Queue_Front(&gRunningTask))->task;
+	
+	PrepareForRun(gCTaskAddr);
+	
+	LoadTask(gCTaskAddr);
+}
+
 void LaunchTask()
 {
 	gCTaskAddr = &((TaskNode*)Queue_Front(&gRunningTask))->task;
@@ -284,23 +326,13 @@ void MtxSchedule(uint action)
 	//当锁状态为等待时 将当前执行任务调度到等待队列中
 	if( IsEqual(action, WAIT) )
 	{
-		RunningToWaitting();
+		RunningToWaitting(&gWaittingTask);
 
-		ReadyToRunning();
-
-		CheckRunningTask();
-
-		Queue_Rotate(&gRunningTask); //循环 将头节点放入尾部
-
-		gCTaskAddr = &((TaskNode*)Queue_Front(&gRunningTask))->task;
-
-		PrepareForRun(gCTaskAddr);
-
-		LoadTask(gCTaskAddr);		
+		ScheduleNext();
 	}
 	else if( IsEqual(action, NOTIFY) )
 	{
-		WaittingToReady();
+		WaittingToReady(&gWaittingTask);
 	}
 }
 
@@ -310,17 +342,7 @@ void Schedule()
 {
 	RunningToReady();
 
-	ReadyToRunning();
-
-	CheckRunningTask();
-
-	Queue_Rotate(&gRunningTask); //循环 将头节点放入尾部
-
-	gCTaskAddr = &((TaskNode*)Queue_Front(&gRunningTask))->task;
-
-	PrepareForRun(gCTaskAddr);
-
-	LoadTask(gCTaskAddr);
+	ScheduleNext();
 }
 
 void KillTask()
@@ -329,9 +351,43 @@ void KillTask()
 
 	//进入此处代表当前任务已经运行结束 将节点从运行队列中取出 重新放入空闲队列中
 	QueueNode* node = Queue_Remove(&gRunningTask);
+  Task* task = &((TaskNode*)node)->task;   
+
+  WaittingToReady(&task->wait);  //同时将等待此任务完成运行的任务 重新加载到就绪队列
+
+	task->id = 0;
 
 	Queue_Add(&gFreeTaskNode, node);
 
 	Schedule();
 }
+
+void WaitTask(const char* name )
+{
+   Task* task = FindTaskByName(name); //查找需要等待的任务是否存在
+
+   if( task )
+   {
+     RunningToWaitting(&task->wait);
+     ScheduleNext();
+   }
+}
+
+void TaskCallHandler(uint cmd, uint param1, uint param2 )
+{
+	switch (cmd)
+	{
+  	case 0:
+  	  KillTask();
+  	break;
+
+  	case 1:
+      WaitTask((char*)param1); 
+  	break;
+    
+	default:
+	break; 
+	}
+}
+
 
