@@ -19,8 +19,7 @@ AppModInit: ; 0xf000
      mov ebp, esp
 
      ;将函数入口放入共享内存区 
-     mov dword [GetAPPNumEntry], GetAppNum   
-     mov dword [GetAppToRunEntry], GetAppToRun
+     mov dword [AppMainEntry], AppMain   
 
      ;c语言调用约定 参数从右到左入栈
      push HeapSize

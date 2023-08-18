@@ -3,6 +3,7 @@
 
 #include "kernel.h"
 #include "queue.h"
+#include "app.h"
 
 //任务的寄存器列表
 typedef struct {
@@ -61,6 +62,13 @@ typedef struct
     QueueNode head;
     Task task;
 } TaskNode;
+
+typedef struct
+{
+    QueueNode head;
+    AppInfo app;
+} AppNode;
+
 
 enum
 {
