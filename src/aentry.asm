@@ -6,8 +6,6 @@ global _start
 global AppModInit
 
 extern AppMain
-extern GetAppToRun
-extern GetAppNum
 extern MemModInit
 
 [section .text]
@@ -28,8 +26,6 @@ AppModInit: ; 0xf000
      call MemModInit  ;调用内存管理模块初始化
 
      add esp, 8  ;清理栈帧
-
-     call AppMain
      
      leave
      

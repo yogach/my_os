@@ -31,7 +31,7 @@
 })
 
 void Delay(int n);
-char* StrCpy(char* dst, const char* src, int n);
+char* StrCpy(char* dst, const char* src, uint n);
 int StrLen(const char* s);
 int StrCmp(const char* left, const char* right, uint n);
 

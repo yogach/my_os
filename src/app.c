@@ -1,20 +1,12 @@
 
-#include "app.h"
 #include "utility.h"
 #include "memory.h"
 #include "syscall.h"
 #include "demo1.h"
 #include "demo2.h"
 
-#define MAX_APP_NUM   16
-
-static AppInfo gAppToRun[MAX_APP_NUM] = {0};
-static uint gAppNum = 0;
-
 int i = 0;
 uint g_mutex = 0;
-
-
 
 void TaskA();
 void TaskB();
@@ -25,21 +17,11 @@ void CookRice();
 void CookDish();
 void HaveDinner();
 
-/*
-static void RegApp(const char* name, void(*tmain)(), byte pri)
-{
-
-}
-*/
-
 void AppMain()
 {
-    int* p = (int*)0x80000;
-    
-    *p = 0;
-    
-    SetPrintPos(0, 10);
-    PrintString("AppMain() : Hello D.T.OS!\n");
+	 RegApp("CookRice", CookRice, 255);
+	 RegApp("CookDish", CookDish, 255);
+	 RegApp("HaveDinner", HaveDinner, 255);
 }
 
 

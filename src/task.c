@@ -4,8 +4,8 @@
 #include "app.h"
 
 
-#define MAX_TASK_NUM      4
-#define MAX_RUNNING_TASK  2
+#define MAX_TASK_NUM        16
+#define MAX_RUNNING_TASK    8
 #define MAX_READY_TASK    (MAX_TASK_NUM - MAX_RUNNING_TASK)
 #define MAX_TASK_BUFF_NUM (MAX_TASK_NUM + 1)
 #define PID_BASE          0x10
@@ -24,7 +24,6 @@ static Queue gRunningTask = {0};
 static Queue gWaittingTask = {0};
 static TSS gTSS = {0};
 static TaskNode* gIdleTask = NULL;
-static uint gAppToRunIndex = 0;
 static uint gPid = PID_BASE;
 
 //所有任务运行的入口
@@ -84,7 +83,14 @@ static void InitTask(Task* pt, uint id, const char* name, void(*entry)(), ushort
 	pt->current = 0;
 	pt->total = MAX_TIME_SLICE - pri;
 
-	StrCpy(pt->name, name, sizeof(pt->name) - 1);
+  if( name )
+  {
+		StrCpy(pt->name, name, sizeof(pt->name) - 1);
+	}
+	else
+	{
+	  *(pt->name) = 0;
+	}
 	
 	Queue_Init(&pt->wait);
 
@@ -153,14 +159,14 @@ static void CreateTask()
 
 			Queue_Add(&gReadyTask, (QueueNode*)tn);
 
+      Free((void*)an->app.name);
 			Free(an);
 		}
 		else
 		{
 			break;
 		}
-
-		gAppToRunIndex++;
+		
 	}
 }
 
@@ -254,19 +260,27 @@ static void WaittingToReady(Queue* wq)
 	}
 }
 
-static void AppMainToRun()
+static void AppInfoToRun(const char* name, void(*tmain)(), byte pri)
 {
-	AppNode* an = Malloc(sizeof(AppNode));
+  AppNode* an = (AppNode*)Malloc(sizeof(AppNode));
 
 	if( an )
 	{
-	  an->app.name = "AppMain";
-	  an->app.tmain = (void*)(*((uint*)AppMainEntry));
-	  an->app.priority = 200;
+	  //申请内存 将任务名拷贝到申请的内存中
+    char* s = name ? (char*)Malloc(StrLen(name) + 1) : NULL;
+	
+	  an->app.name = s ? StrCpy(s, name, -1) : NULL; 
+	  an->app.tmain = tmain;
+    an->app.priority = pri;
 
 	  Queue_Add(&gAppToRun, (QueueNode *)an);
-
 	}
+}
+
+
+static void AppMainToRun()
+{
+	AppInfoToRun("AppMain", (void*)(*((uint*)AppMainEntry)), 200);
 }
 
 
@@ -285,7 +299,7 @@ void TaskModInit()
   
 	gIdleTask = (void*)AddrOff(gTaskBuff, MAX_TASK_NUM);
 
-    Queue_Init(&gAppToRun);
+  Queue_Init(&gAppToRun);
 	Queue_Init(&gFreeTaskNode);
 	Queue_Init(&gRunningTask);
 	Queue_Init(&gReadyTask);
@@ -301,7 +315,7 @@ void TaskModInit()
 
 	InitTask(&gIdleTask->task, 0, "IdleTask", IdleTask, 255);
 
-    AppMainToRun();
+  AppMainToRun();
 
 	ReadyToRunning();
 
@@ -384,6 +398,7 @@ void WaitTask(const char* name )
      RunningToWaitting(&task->wait);
      ScheduleNext();
    }
+   
 }
 
 void TaskCallHandler(uint cmd, uint param1, uint param2 )
@@ -396,6 +411,10 @@ void TaskCallHandler(uint cmd, uint param1, uint param2 )
 
   	case 1:
       WaitTask((char*)param1); 
+  	break;
+
+  	case 2:
+      AppInfoToRun(((AppInfo*)param1)->name, ((AppInfo*)param1)->tmain, ((AppInfo*)param1)->priority);
   	break;
     
 	default:

@@ -86,7 +86,7 @@ static void SysDestroyMutex(Mutex* mutex, uint* result)
 	}
 }
 
-static SysNormalEnter(Mutex* mutex, uint* wait)
+static void SysNormalEnter(Mutex* mutex, uint* wait)
 {
 	if( mutex->lock )
 	{
@@ -102,7 +102,7 @@ static SysNormalEnter(Mutex* mutex, uint* wait)
 	}
 }
 
-static SysStrictEnter(Mutex* mutex, uint* wait)
+static void SysStrictEnter(Mutex* mutex, uint* wait)
 {
 	if( mutex->lock )
 	{
@@ -148,14 +148,14 @@ static void SysEnterCritical(Mutex* mutex, uint* wait)
 	}
 }
 
-static SysNormalExit(Mutex* mutex)
+static void SysNormalExit(Mutex* mutex)
 {
 	mutex->lock = 0;
 
 	MtxSchedule(NOTIFY);
 }
 
-static SysStrictExit(Mutex* mutex)
+static void SysStrictExit(Mutex* mutex)
 {
 	//释放锁时 如果是任务地址标识不对 则kill掉对应任务
 	if( IsEqual(mutex->lock, gCTaskAddr) )

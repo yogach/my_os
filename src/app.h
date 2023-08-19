@@ -11,7 +11,6 @@ typedef struct
 	 byte priority;
 } AppInfo;
 
-void AppModInit();
 
 
 #endif 
