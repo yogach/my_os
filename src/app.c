@@ -19,9 +19,11 @@ void HaveDinner();
 
 void AppMain()
 {
-	 RegApp("CookRice", CookRice, 255);
-	 RegApp("CookDish", CookDish, 255);
-	 RegApp("HaveDinner", HaveDinner, 255);
+	// RegApp("CookRice", CookRice, 255);
+	// RegApp("CookDish", CookDish, 255);
+	// RegApp("HaveDinner", HaveDinner, 255);
+
+	// RunDemo1();
 }
 
 

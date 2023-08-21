@@ -63,10 +63,7 @@ void ProducerA()
 {
     int next = 0;
     int run = 1;
-    
-    g_mutex = CreateMutex(Strict);
-    
-    List_Init(&g_store);
+        
     
     SetPrintPos(0, 12);
     
@@ -206,4 +203,39 @@ void ConsumerB()
 
 		}
 }
+
+
+static void Initialize()
+{
+    g_mutex = CreateMutex(Strict);
+    
+    List_Init(&g_store);
+}
+
+static void Deinit()
+{
+    //等待执行结束
+    Wait("PA");
+    Wait("PB");
+    Wait("CA");
+    Wait("CB");
+
+    SetPrintPos(0, 20);
+    PrintString(__FUNCTION__);
+
+    DestroyMutex(g_mutex);
+}
+
+void RunDemo1()
+{
+   Initialize();
+
+   RegApp("PA", ProducerA, 255);
+   RegApp("PB", ProducerB, 255);
+   RegApp("CA", ConsumerA, 255);
+   RegApp("CA", ConsumerB, 255);
+
+   RegApp("Deinit", Deinit, 255);
+}
+
 
