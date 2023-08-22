@@ -23,7 +23,8 @@ void AppMain()
 	// RegApp("CookDish", CookDish, 255);
 	// RegApp("HaveDinner", HaveDinner, 255);
 
-	// RunDemo1();
+	//RunDemo1();
+	RunDemo2();	
 }
 
 
