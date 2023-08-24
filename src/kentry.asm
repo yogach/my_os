@@ -7,6 +7,8 @@ global TimerHandlerEntry
 global SysCallHandlerEntry
 global PageFaultHandlerEntry
 global SegmentFaultHandlerEntry
+global KeyboardHandlerEntry
+
 
 
 ; 引用外部的变量
@@ -17,7 +19,6 @@ extern KMain
 extern RunTask
 extern LoadTask
 extern InitInterrupt
-extern EnableTimer
 extern SendEOI
 extern ClearScreen
 
@@ -26,6 +27,7 @@ extern TimerHandler
 extern SysCallHandler
 extern PageFaultHandler
 extern SegmentFaultHandler
+extern KeyboardHandler
 
 ;定义宏 0 代表不需要参数
 %macro BeginISR  0
@@ -120,9 +122,6 @@ InitGlobal:
 
      mov eax, dword [InitInterruptEntry]
      mov dword [InitInterrupt], eax
-
-     mov eax, dword [EnableTimerEntry]
-     mov dword [EnableTimer], eax
      
      mov eax, dword [SendEOIEntry]
      mov dword [SendEOI], eax
@@ -133,6 +132,46 @@ InitGlobal:
      leave  ;关闭栈帧
      
      ret
+;
+; byte ReadPort(ushort port)
+;
+ReadPort:
+     push ebp
+     push ebp, esp
+
+     xor eax, eax  ; 将eax本身置为0
+
+     mov dx, [esp + 8] ;取得c语言调用传入的参数 实际就是传入的端口
+     in al, dx         ; 读取对应的端口值
+
+     nop 
+     nop
+     nop
+
+     leave
+
+     ret
+
+;
+; void WritePort(ushort port, byte value)
+;
+WritePort:
+     push ebp 
+     push ebp, esp
+
+     xor eax, eax
+
+     mov dx, [esp + 8]
+     mov al, [esp + 12]
+     out dx, al
+
+     nop 
+     nop
+     nop
+
+     leave
+
+     ret    
 
 ;
 ;
@@ -141,6 +180,12 @@ BeginISR
     call TimerHandler
 EndISR
 
+;
+;
+KeyboardHandlerEntry:
+BeginISR
+    call KeyboardHandler
+EndISR
 ;
 ;
 SysCallHandlerEntry:
@@ -169,5 +214,6 @@ SegmentFaultHandlerEntry:
 BeginFSR
     call SegmentFaultHandler
 EndISR
+
 
      

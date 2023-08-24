@@ -196,7 +196,6 @@ InitDescItem:
 StoreGlobal:
     mov dword [RunTaskEntry], RunTask
     mov dword [InitInterruptEntry], InitInterrupt
-    mov dword [EnableTimerEntry], EnableTimer
     mov dword [SendEOIEntry], SendEOI
     mov dword [LoadTaskEntry], LoadTask
 
@@ -348,7 +347,7 @@ RunTask:
     nop
     %endrep
 
-    and ax, 0xfe
+    and ax, 0xfC   ;使能中断
 
     out dx, al
 
@@ -370,28 +369,6 @@ LoadTask:
     lldt word [eax + 96] ;加载局部段描述符
     
     leave
-    ret
-
-;
-;
-EnableTimer:
-    push ax
-    push dx  
-
-    ;读主片IMR
-    mov dx, MASTER_IMR_PORT
-    
-    call ReadIMR
-
-    ;使能时钟中断 
-    and ax, 0xFE
-
-    ;写回到主片内
-    call WriteIMR
-    
-    pop dx
-    pop ax
-    
     ret
 
 ;

@@ -10,6 +10,8 @@ DeclHandler(SegmentFaultHandler);
 DeclHandler(PageFaultHandler);
 DeclHandler(TimerHandler);
 DeclHandler(SysCallHandler);
+DeclHandler(KeyboardHandler);
+
 
                               
 #endif

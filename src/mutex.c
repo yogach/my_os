@@ -204,21 +204,21 @@ void MutexCallHandler(uint cmd, uint param1, uint param2)
 	{
 		uint* pRet = (uint*)param1;
 
-    //将进程锁的地址放入 param1对应的地址中     
-    //param2 是锁类型
+        //将进程锁的地址放入 param1对应的地址中     
+        //param2 是锁类型
 		*pRet = (uint)SysCreateMutex(param2);
 	}
 	else if( cmd == 1 )
 	{
-    SysEnterCritical((Mutex*)param1, (uint*)param2);
+       SysEnterCritical((Mutex*)param1, (uint*)param2);
 	}
 	else if( cmd == 2 )
 	{
-    SysExitCritical((Mutex*)param1);
+       SysExitCritical((Mutex*)param1);
 	}
 	else
 	{
-    SysDestroyMutex((Mutex*)param1, (uint*)param2);
+       SysDestroyMutex((Mutex*)param1, (uint*)param2);
 	}
 }
 

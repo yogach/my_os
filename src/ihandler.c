@@ -1,6 +1,8 @@
 #include "interrupt.h"
 #include "task.h"
 
+extern byte ReadPort(ushort port);
+
 extern volatile Task* gCTaskAddr;
 
 void TimerHandler()
@@ -49,4 +51,14 @@ void SegmentFaultHandler()
     PrintString(gCTaskAddr->name);
     
     KillTask();
+}
+
+void KeyboardHandler()
+{
+    byte kc = ReadPort(0x60); //读取键盘按键值
+
+    PrintIntHex(kc);
+    PrintChar(' ');
+    
+    SendEOI(MASTER_EOI_PORT);
 }

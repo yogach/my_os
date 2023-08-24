@@ -378,9 +378,9 @@ void KillTask()
 
 	//进入此处代表当前任务已经运行结束 将节点从运行队列中取出 重新放入空闲队列中
 	QueueNode* node = Queue_Remove(&gRunningTask);
-  Task* task = &((TaskNode*)node)->task;   
+	Task* task = &((TaskNode*)node)->task;   
 
-  WaittingToReady(&task->wait);  //同时将等待此任务完成运行的任务 重新加载到就绪队列
+	WaittingToReady(&task->wait);  //同时将等待此任务完成运行的任务 重新加载到就绪队列
 
 	task->id = 0;
 
