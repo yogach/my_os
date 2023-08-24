@@ -24,7 +24,7 @@ void AppMain()
 	// RegApp("HaveDinner", HaveDinner, 255);
 
 	//RunDemo1();
-	RunDemo2();	
+	//RunDemo2();	
 }
 
 

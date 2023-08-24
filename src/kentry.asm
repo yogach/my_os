@@ -10,6 +10,8 @@ global SegmentFaultHandlerEntry
 global KeyboardHandlerEntry
 
 
+global ReadPort
+global WritePort
 
 ; 引用外部的变量
 extern gGdtInfo
@@ -137,8 +139,8 @@ InitGlobal:
 ;
 ReadPort:
      push ebp
-     push ebp, esp
-
+     mov ebp, esp
+     
      xor eax, eax  ; 将eax本身置为0
 
      mov dx, [esp + 8] ;取得c语言调用传入的参数 实际就是传入的端口
@@ -157,8 +159,8 @@ ReadPort:
 ;
 WritePort:
      push ebp 
-     push ebp, esp
-
+     mov ebp, esp
+     
      xor eax, eax
 
      mov dx, [esp + 8]
