@@ -1,5 +1,6 @@
 #include "interrupt.h"
 #include "task.h"
+#include "keyboard.h"
 
 extern byte ReadPort(ushort port);
 
@@ -55,10 +56,12 @@ void SegmentFaultHandler()
 
 void KeyboardHandler()
 {
-    byte kc = ReadPort(0x60); //读取键盘按键值
+    byte sc = ReadPort(0x60); //读取键盘按键值
 
-    PrintIntHex(kc);
+    PrintIntHex(sc);
     PrintChar(' ');
+
+    PutScanCode(sc);	
     
     SendEOI(MASTER_EOI_PORT);
 }
