@@ -169,7 +169,7 @@ static uint MakeCode(KeyCode* pkc, int shift, int capsLock, int numLock, int E0)
 
 static uint KeyHandler(byte sc)
 {
-    static int sShift = 0;
+    static int cShift = 0;
     static int cCapsLock = 0;
     static int cNumLock = 0;
     static int E0 = 0;
@@ -186,9 +186,40 @@ static uint KeyHandler(byte sc)
     {
        uint pressed = KeyType(sc);
        KeyCode* pkc = NULL;
+
+       //如果是按下状态
+       if( !pressed )
+       {
+         sc = sc - 0x80; //- 0x80 相当于 按下和释放都一起处理
+       }
+
+       pkc = AddrOff(gKeyMap, sc);
+
+       if( ret = !!pkc->scode )
+       {
+         uint code = 0;
+
+         if( IsShift(sc) )
+         {
+           cShift = pressed;
+         }
+         else if( IsCapsLock(sc) && pressed )
+         {
+           cCapsLock = !cCapsLock;
+         }
+         else if( IsNumLock(sc) && pressed )
+         {
+           cNumLock = !cNumLock;
+         }
+
+         code = pressed | MakeCode(pkc, cShift, cCapsLock, cNumLock, E0);
+
+         E0 = 0;
+       }
     
     }
-    
+
+    return ret;    
 }
 
 
