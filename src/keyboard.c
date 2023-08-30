@@ -149,21 +149,137 @@ static uint PauseHandler(byte sc)
     return ret;
 }
 
+static uint IsNumPadKey(byte sc, int E0)
+{
+    static const byte cNumScanCode[]            = {0x52, 0x53, 0x4F, 0x50, 0x51, 0x4B, 0x4C, 0x4D, 0x47, 0x48, 0x49, 0x35, 0x37, 0x4A, 0x4E, 0x1C};  
+    static const byte cNumE0[Dim(cNumScanCode)] = {0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    1,    0,    0,    0,    1   };
+
+    uint ret = 0;
+    int i = 0;
+
+    for(i=0; i<Dim(cNumScanCode); i++)
+    {
+       byte* pc = AddrOff(cNumScanCode, i);
+       byte* pe = AddrOff(cNumE0, i);
+
+       //判断E0和扫描码 是否符合要求
+       if( (sc == *pc) && (E0 == *pe) )
+       {
+          ret = 1;
+          break;
+       }
+    }
+
+    return ret;
+}
+
+static uint MakeNormalCode(KeyCode* pkc, int shift, int caps)
+{
+    uint ret = 0;
+
+    if( !caps )
+    {
+       if( !shift )
+         ret = (pkc->scode << 16) | (pkc->kcode << 8) | pkc->ascii1;
+       else
+         ret = (pkc->scode << 16) | (pkc->kcode << 8) | pkc->ascii2;
+    }
+    else
+    {
+       //如果按键是字符
+       if( ('a' <= pkc->ascii1) && (pkc->ascii1 <= 'z') )
+       {
+          if( !shift )
+            ret = (pkc->scode << 16) | (pkc->kcode << 8) | pkc->ascii2;
+          else
+            ret = (pkc->scode << 16) | (pkc->kcode << 8) | pkc->ascii1;
+       }
+       else
+       {
+         //如果按键是除字符的其他按键 不受caps影响
+          if( !shift )
+            ret = (pkc->scode << 16) | (pkc->kcode << 8) | pkc->ascii1;
+          else
+            ret = (pkc->scode << 16) | (pkc->kcode << 8) | pkc->ascii2;         
+          
+       }
+    }
+
+
+    return ret;
+}
+
+static uint MakeNumCode(KeyCode* pkc, int shift, int num)
+{
+    static const KeyCode cNumKeyMap[] = 
+    {
+        { '0',       0,       0x52,     0x2D },
+        { '.',       0,       0x53,     0x2E },
+        { '1',       0,       0x4F,     0x23 },
+        { '2',       0,       0x50,     0x28 },
+        { '3',       0,       0x51,     0x22 },
+        { '4',       0,       0x4B,     0x25 },
+        { '5',       0,       0x4C,     0x0C },
+        { '6',       0,       0x4D,     0x27 },
+        { '7',       0,       0x47,     0x24 },
+        { '8',       0,       0x48,     0x26 },
+        { '9',       0,       0x49,     0x21 },
+        { '/',      '/',      0x35,     0x6F },
+        { '*',      '*',      0x37,     0x6A },
+        { '-',      '-',      0x4A,     0x6D },
+        { '+',      '+',      0x4E,     0x6B },
+        {  0,        0,       0x1C,     0x0D },
+        {  0,        0,        0,        0   }
+    };
+
+    uint ret = 0;
+    int i = 0;
+    KeyCode* nkc = AddrOff(cNumKeyMap, i);
+
+    while( nkc->scode )
+    {
+       if( nkc->scode == pkc->scode )
+       {
+          pkc = nkc;
+          break;
+       }
+
+       i++;
+
+       nkc = AddrOff(cNumKeyMap, i);
+    }
+
+    if( IsEqual(pkc, nkc) )
+    {
+      //如果numlock没有被按下
+      if( !num )
+      {
+        ret = (pkc->scode << 16) | (pkc->kcode << 8) | pkc->ascii2;
+      }
+      else
+      {
+        if( !shift )
+          ret = (pkc->scode << 16) | (pkc->kcode << 8) | pkc->ascii1;
+        else
+          ret = (pkc->scode << 16) | (pkc->kcode << 8) | pkc->ascii2;
+      }
+    }
+
+    return ret;
+}
+
 static uint MakeCode(KeyCode* pkc, int shift, int capsLock, int numLock, int E0)
 {
     uint ret = 0;
     
-    PrintChar('\n');
-    PrintChar(pkc->ascii1);
-    PrintChar(' ');
-    PrintIntDec(shift);
-    PrintChar(' ');
-    PrintIntDec(capsLock);
-    PrintChar(' ');
-    PrintIntDec(numLock);
-    PrintChar(' ');
-    PrintIntDec(E0);
-    PrintChar('\n');
+    if( IsNumPadKey(pkc, E0) )
+    {
+       ret = MakeNumCode(pkc, shift, numLock);
+    }
+    else
+    {
+       ret = MakeNormalCode(pkc, shift, capsLock);
+    }
     
     return ret;
 }
@@ -214,6 +330,9 @@ static uint KeyHandler(byte sc)
          }
 
          code = pressed | MakeCode(pkc, cShift, cCapsLock, cNumLock, E0);
+
+		 if( pressed )
+			PrintChar((char)code);
 
          E0 = 0;
        }

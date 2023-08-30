@@ -11,6 +11,7 @@
 #define Max(a, b) ( (a) > (b) ? (a) : (b) )
 #define Min(a, b) ( (a) < (b) ? (a) : (b) )
 
+#define Dim(a) ( sizeof(a)/ sizeof(*(a)))
 
 #define IsEqual(a, b)   \
 ({                      \
