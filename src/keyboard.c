@@ -272,7 +272,7 @@ static uint MakeCode(KeyCode* pkc, int shift, int capsLock, int numLock, int E0)
 {
     uint ret = 0;
     
-    if( IsNumPadKey(pkc, E0) )
+    if( IsNumPadKey(pkc->scode, E0) )
     {
        ret = MakeNumCode(pkc, shift, numLock);
     }
