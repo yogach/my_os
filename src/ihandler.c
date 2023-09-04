@@ -58,7 +58,30 @@ void KeyboardHandler()
 {
     byte sc = ReadPort(0x60); //读取键盘按键值
 
-    PutScanCode(sc);	
+    PutScanCode(sc);
+
+    uint code = 0;
+
+    while( code = FetchKeyCode() )
+    {      
+       if( (((byte)(code >>8)) == 0x13) && (code & 0x1000000) )
+       {
+          PrintString("Pause Pressed\n");
+       }
+       else if(((byte)(code >>8)) == 0x13)
+       { 
+          PrintString("Pause Released\n");
+       }
+
+       if( (char)code && (code & 0x1000000) )
+       {
+         PrintChar((char)code);
+       }
+       else if( (((byte)(code >>8)) == 0x0D) && (code & 0x1000000) )
+       {
+         PrintChar('\n');
+       }
+    }
     
     SendEOI(MASTER_EOI_PORT);
 }

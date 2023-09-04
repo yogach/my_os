@@ -122,7 +122,8 @@ static const KeyCode gKeyMap[] =
 /* 0x5A - ???       */ {  0,        0,        0,         0   },
 /* 0x5B - Left Win  */ {  0,        0,       0x5B,      0x5B },	
 /* 0x5C - Right Win */ {  0,        0,       0x5C,      0x5C },
-/* 0x5D - Apps      */ {  0,        0,       0x5D,      0x5D }
+/* 0x5D - Apps      */ {  0,        0,       0x5D,      0x5D },
+/* 0x5E - Pause     */ {  0,        0,       0x5E,      0x13 }
 };
 
 static KeyCodeBuff gKCBuff = {0};
@@ -158,7 +159,7 @@ static void StoreKeyCode(uint kc)
       gKCBuff.tail = (gKCBuff.tail + 1) % gKCBuff.max;
       gKCBuff.count++;       
     }
-    else
+    else if( gKCBuff.count > 0 )
     {
        //如果超过环形缓冲区的最大 则覆盖之前保存的数据
        FetchKeyCode();
@@ -196,7 +197,32 @@ static uint IsNumLock(byte sc)
 
 static uint PauseHandler(byte sc)
 {
-    uint ret = 0;
+    static int cPause = 0;
+    uint ret = ( (sc == 0xE1) || cPause);  //当检测到一次 0xe1 之后 继续检测是否为停止键
+
+    if( ret )
+    {
+       static byte cPauseCode[] = {0xE1, 0x1D, 0x45, 0xE1, 0x9D, 0xC5};
+       byte* pcc = AddrOff(cPauseCode, cPause);
+
+       if( sc == *pcc )
+       {
+          cPause++;
+       }
+       else
+       {
+          cPause = 0;
+          ret = 0;
+       }
+
+       //当每一个字符都能匹配上 则代表输出了PAUSE键
+       if( cPause == Dim(cPauseCode) )
+       {
+          cPause = 0;
+          PutScanCode(0x5E);
+          PutScanCode(0xDE);
+       }
+    }
 
     return ret;
 }
