@@ -58,9 +58,6 @@ void KeyboardHandler()
 {
     byte sc = ReadPort(0x60); //读取键盘按键值
 
-    PrintIntHex(sc);
-    PrintChar(' ');
-
     PutScanCode(sc);	
     
     SendEOI(MASTER_EOI_PORT);

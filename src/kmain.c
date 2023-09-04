@@ -3,6 +3,7 @@
 #include "interrupt.h"
 #include "memory.h"
 #include "mutex.h"
+#include "keyboard.h"
 
 void KMain()
 {
@@ -26,17 +27,19 @@ void KMain()
     PrintIntDec((uint)gIdtInfo.size);
     PrintChar('\n');
 
-		MemModInit(KernelHeapBase, HeapSize);
+	MemModInit(KernelHeapBase, HeapSize);
 
-		MutexModInit();
+	KeyboardModInit();
 
-		AppModInit();
+	MutexModInit();
+
+	AppModInit();
     
     TaskModInit();
     
     IntModInit(); //初始化中断
 
-		ConfigPageTable();
+	ConfigPageTable();
     
     LaunchTask(); //开始执行任务
 }

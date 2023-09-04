@@ -2,6 +2,17 @@
 #include "keyboard.h"
 #include "utility.h"
 
+#define KB_BUFF_SIZE   8
+
+typedef struct
+{
+    uint head;
+    uint tail;
+    uint count;
+    uint max;
+    uint buff[KB_BUFF_SIZE];
+} KeyCodeBuff;
+
 typedef struct
 {
     byte ascii1;   // no shift code
@@ -113,6 +124,47 @@ static const KeyCode gKeyMap[] =
 /* 0x5C - Right Win */ {  0,        0,       0x5C,      0x5C },
 /* 0x5D - Apps      */ {  0,        0,       0x5D,      0x5D }
 };
+
+static KeyCodeBuff gKCBuff = {0};
+
+//环形缓冲区出栈
+uint FetchKeyCode()
+{
+    uint ret = 0;
+
+    if( gKCBuff.count > 0 )
+    {
+      uint* p = AddrOff(gKCBuff.buff, gKCBuff.head);
+
+      ret = *p;
+
+      gKCBuff.head = (gKCBuff.head + 1) % gKCBuff.max;
+      gKCBuff.count--;
+    }
+  
+    return ret;
+}
+
+static void StoreKeyCode(uint kc)
+{
+    uint* p = NULL;
+
+    if( gKCBuff.count < gKCBuff.max )
+    {
+       p = AddrOff(gKCBuff.buff, gKCBuff.tail);
+
+       *p = kc;
+
+      gKCBuff.tail = (gKCBuff.tail + 1) % gKCBuff.max;
+      gKCBuff.count++;       
+    }
+    else
+    {
+       //如果超过环形缓冲区的最大 则覆盖之前保存的数据
+       FetchKeyCode();
+       StoreKeyCode(kc);
+    }
+}
 
 //判断是否为按下的扫描码
 static uint KeyType(byte sc)
@@ -331,8 +383,10 @@ static uint KeyHandler(byte sc)
 
          code = pressed | MakeCode(pkc, cShift, cCapsLock, cNumLock, E0);
 
-		 if( pressed )
-			PrintChar((char)code);
+         StoreKeyCode(code);
+
+		 //if( pressed )
+		 //	PrintChar((char)code);
 
          E0 = 0;
        }
@@ -361,10 +415,8 @@ void PutScanCode(byte sc)
 
 }
 
-uint FetchKeyCode()
+void KeyboardModInit()
 {
-    uint ret = 0;
-	
-	return ret;
+    gKCBuff.max = 2;
 }
 
