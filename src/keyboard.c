@@ -385,10 +385,10 @@ static uint KeyHandler(byte sc)
        //如果是按下状态
        if( !pressed )
        {
-         sc = sc - 0x80; //- 0x80 相当于 按下和释放都一起处理
+         sc = sc - 0x80; //- 0x80 相当于 按下和释放 放在一起处理
        }
 
-       pkc = AddrOff(gKeyMap, sc);
+       pkc = AddrOff(gKeyMap, sc); //根据扫描码得到 对应的数组项
 
        if( ret = !!pkc->scode )
        {

@@ -4,6 +4,8 @@
 #include "kernel.h"
 #include "queue.h"
 #include "app.h"
+#include "event.h"
+
 
 //任务的寄存器列表
 typedef struct {
@@ -50,11 +52,12 @@ typedef struct
 		//新增变量在此开始新增
     void  (*tmain)();
     uint       id;
-		ushort     current;
-		ushort     total;
+	ushort     current;
+	ushort     total;
     char       name[16];
     Queue      wait;    //增加任务等待链表 将需要等到本任务运行的任务加入此
     byte*      stack;   //任务使用的栈
+    Event*     event;
 } Task;
 
 typedef struct

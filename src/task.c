@@ -159,7 +159,7 @@ static void CreateTask()
 
 			Queue_Add(&gReadyTask, (QueueNode*)tn);
 
-      Free((void*)an->app.name);
+            Free((void*)an->app.name);
 			Free(an);
 		}
 		else
@@ -255,6 +255,10 @@ static void WaittingToReady(Queue* wq)
 	{
 		TaskNode* tn = (TaskNode*)Queue_Front(wq);
 
+		DestroyEvent(tn->task.event);
+
+		tn->task.event = NULL;
+
 		Queue_Remove(wq);
 		Queue_Add(&gReadyTask, (QueueNode*)tn);
 	}
@@ -262,16 +266,16 @@ static void WaittingToReady(Queue* wq)
 
 static void AppInfoToRun(const char* name, void(*tmain)(), byte pri)
 {
-  AppNode* an = (AppNode*)Malloc(sizeof(AppNode));
+    AppNode* an = (AppNode*)Malloc(sizeof(AppNode));
 
 	if( an )
 	{
 	  //申请内存 将任务名拷贝到申请的内存中
-    char* s = name ? (char*)Malloc(StrLen(name) + 1) : NULL;
+      char* s = name ? (char*)Malloc(StrLen(name) + 1) : NULL;
 	
 	  an->app.name = s ? StrCpy(s, name, -1) : NULL; 
 	  an->app.tmain = tmain;
-    an->app.priority = pri;
+      an->app.priority = pri;
 
 	  Queue_Add(&gAppToRun, (QueueNode *)an);
 	}
@@ -287,7 +291,7 @@ static void AppMainToRun()
 void TaskModInit()
 {
 	int i = 0;
-  byte* pStack = (byte*)(AppHeapBase - (AppStackSize * MAX_TASK_BUFF_NUM)); //将app使用的栈定义在app区域的末尾
+    byte* pStack = (byte*)(AppHeapBase - (AppStackSize * MAX_TASK_BUFF_NUM)); //将app使用的栈定义在app区域的末尾
 
   //设置app使用的栈
 	for(i=0; i<MAX_TASK_BUFF_NUM; i++)
@@ -299,7 +303,7 @@ void TaskModInit()
   
 	gIdleTask = (void*)AddrOff(gTaskBuff, MAX_TASK_NUM);
 
-  Queue_Init(&gAppToRun);
+    Queue_Init(&gAppToRun);
 	Queue_Init(&gFreeTaskNode);
 	Queue_Init(&gRunningTask);
 	Queue_Init(&gReadyTask);
@@ -315,7 +319,7 @@ void TaskModInit()
 
 	InitTask(&gIdleTask->task, 0, "IdleTask", IdleTask, 255);
 
-  AppMainToRun();
+    AppMainToRun();
 
 	ReadyToRunning();
 
@@ -370,6 +374,15 @@ void Schedule()
 	RunningToReady();
 
 	ScheduleNext();
+}
+
+static void WaitEvent(Queue* wait, Event* event)
+{
+    gCTaskAddr->event = event;
+
+    RunningToWaitting(wait); //将当前执行任务放入到 wait 等待队列
+
+    ScheduleNext();
 }
 
 void KillTask()
