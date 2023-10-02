@@ -86,8 +86,8 @@ extern void (* const LoadTask)(volatile Task* pt);
 void TaskModInit();
 void LaunchTask();
 void Schedule();
-void MtxSchedule(uint action);
 void KillTask();
+void EventSchedule(uint action, Event* event);
 void TaskCallHandler(uint cmd, uint param1, uint param2 );
 void WaitTask(const char* name);
 

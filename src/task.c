@@ -2,6 +2,7 @@
 #include "task.h"
 #include "queue.h"
 #include "app.h"
+#include "mutex.h"
 
 
 #define MAX_TASK_NUM        16
@@ -21,7 +22,6 @@ static Queue gAppToRun = {0};
 static Queue gFreeTaskNode = {0};
 static Queue gReadyTask = {0};
 static Queue gRunningTask = {0};
-static Queue gWaittingTask = {0};
 static TSS gTSS = {0};
 static TaskNode* gIdleTask = NULL;
 static uint gPid = PID_BASE;
@@ -82,9 +82,10 @@ static void InitTask(Task* pt, uint id, const char* name, void(*entry)(), ushort
 	pt->id    = id;
 	pt->current = 0;
 	pt->total = MAX_TIME_SLICE - pri;
+	pt->event = NULL;
 
-  if( name )
-  {
+    if( name )
+    {
 		StrCpy(pt->name, name, sizeof(pt->name) - 1);
 	}
 	else
@@ -307,7 +308,6 @@ void TaskModInit()
 	Queue_Init(&gFreeTaskNode);
 	Queue_Init(&gRunningTask);
 	Queue_Init(&gReadyTask);
-	Queue_Init(&gWaittingTask);
 
 	for(i = 0; i < MAX_TASK_NUM; i++)
 	{
@@ -352,22 +352,6 @@ void LaunchTask()
 	RunTask(gCTaskAddr);
 }
 
-void MtxSchedule(uint action)
-{
-	//当锁状态为等待时 将当前执行任务调度到等待队列中
-	if( IsEqual(action, WAIT) )
-	{
-		RunningToWaitting(&gWaittingTask);
-
-		ScheduleNext();
-	}
-	else if( IsEqual(action, NOTIFY) )
-	{
-		WaittingToReady(&gWaittingTask);
-	}
-}
-
-
 //任务调度函数 位于时钟中断内
 void Schedule()
 {
@@ -385,6 +369,57 @@ static void WaitEvent(Queue* wait, Event* event)
     ScheduleNext();
 }
 
+static void TaskSchedule(uint action, Event* event)
+{
+    Task* task = (Task*)event->id;
+
+	if( action == NOTIFY )
+	{
+		WaittingToReady(&task->wait);		
+	}
+	else if( action == WAIT )
+	{
+	    WaitEvent(&task->wait, event);
+	}
+}
+
+static void MutexSchedule(uint action, Event* event)
+{
+    Mutex* mutex = (Mutex*)event->id;
+
+	if( action == NOTIFY )
+	{
+		WaittingToReady(&mutex->wait);		
+	}
+	else if( action == WAIT )
+	{
+	    WaitEvent(&mutex->wait, event);
+	}	
+}
+
+static void KeySchedule(uint action, Event* event)
+{
+}
+
+void EventSchedule(uint action, Event* event)
+{
+	switch (event->type)
+	{
+		case KeyEvent:
+			KeySchedule(action, event);
+			break;
+		case TaskEvent:
+			TaskSchedule(action, event);
+			break;
+		case MutexEvent:
+			MutexSchedule(action, event);
+			break;
+
+		default:
+		    break;
+	}
+}
+
 void KillTask()
 {
 	//PrintString(__FUNCTION__);  // destroy current task
@@ -392,8 +427,9 @@ void KillTask()
 	//进入此处代表当前任务已经运行结束 将节点从运行队列中取出 重新放入空闲队列中
 	QueueNode* node = Queue_Remove(&gRunningTask);
 	Task* task = &((TaskNode*)node)->task;   
-
-	WaittingToReady(&task->wait);  //同时将等待此任务完成运行的任务 重新加载到就绪队列
+    Event evt = {TaskEvent, (uint)task, 0, 0}; //创建一个事件类型
+    
+	EventSchedule(NOTIFY, &evt);
 
 	task->id = 0;
 
@@ -404,12 +440,17 @@ void KillTask()
 
 void WaitTask(const char* name )
 {
-   Task* task = FindTaskByName(name); //查找需要等待的任务是否存在
+   Task* task = FindTaskByName(name); //按名字查找需要等待的任务是否存在
 
    if( task )
    {
-     RunningToWaitting(&task->wait);
-     ScheduleNext();
+   	  //使用事件形式进行任务调度
+   	  Event* evt = CreateEvent(TaskEvent, (uint)task, 0, 0);
+
+	  if( evt )
+	  {
+	  	EventSchedule(WAIT, evt);
+	  }
    }
    
 }

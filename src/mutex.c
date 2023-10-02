@@ -2,24 +2,28 @@
 #include "mutex.h"
 #include "memory.h"
 #include "task.h"
-
-enum
-{
-	Normal,
-	Strict	
-};
-
-typedef struct 
-{
-	ListNode head;
-	uint type;     //锁类型
-	uint lock;     //锁状态
-} Mutex;
-
+#include "event.h"
 
 static List gMList = {0};
 
 extern volatile Task* gCTaskAddr;
+
+static Mutex* SysCreateMutex(uint type)
+{
+	Mutex* ret = Malloc(sizeof(Mutex));
+
+	if( ret )
+	{
+		Queue_Init(&ret->wait);
+		
+		ret->lock = 0;
+		ret->type = type;
+
+		List_Add(&gMList, (ListNode *)ret);
+	}
+
+	return ret;
+}
 
 static uint IsMutexValid(Mutex* mutex)
 {
@@ -39,21 +43,6 @@ static uint IsMutexValid(Mutex* mutex)
 	return ret;
 }
 
-
-static Mutex* SysCreateMutex(uint type)
-{
-	Mutex* ret = Malloc(sizeof(Mutex));
-
-	if( ret )
-	{
-		ret->lock = 0;
-		ret->type = type;
-
-		List_Add(&gMList, (ListNode *)ret);
-	}
-
-	return ret;
-}
 
 
 static void SysDestroyMutex(Mutex* mutex, uint* result)
@@ -86,17 +75,26 @@ static void SysDestroyMutex(Mutex* mutex, uint* result)
 	}
 }
 
+static void DoWait(Mutex* mutex, uint* wait)
+{
+	Event* evt = CreateEvent(MutexEvent, (uint)mutex, 0, 0);
+
+	if( evt )
+	{
+		*wait = 1;
+		EventSchedule(WAIT, evt);
+	}
+}
+
 static void SysNormalEnter(Mutex* mutex, uint* wait)
 {
 	if( mutex->lock )
 	{
-		*wait = 1;
-
-		MtxSchedule(WAIT);
+		DoWait(mutex, wait);
 	}
 	else
 	{
-    mutex->lock = 1;
+        mutex->lock = 1;
 	
 		*wait = 0;
 	}
@@ -113,11 +111,7 @@ static void SysStrictEnter(Mutex* mutex, uint* wait)
 		}
 		else
 		{
-	
-			*wait = 1;
-							
-			MtxSchedule(WAIT);
-
+            DoWait(mutex, wait); //任务进入休眠状态 并将休眠队列放入锁的等待队列中
 		}
 	}
 	else
@@ -150,9 +144,11 @@ static void SysEnterCritical(Mutex* mutex, uint* wait)
 
 static void SysNormalExit(Mutex* mutex)
 {
+    Event evt = {MutexEvent, (uint)mutex, 0, 0}; //创建一个事件类型
+
 	mutex->lock = 0;
 
-	MtxSchedule(NOTIFY);
+	EventSchedule(NOTIFY, &evt);
 }
 
 static void SysStrictExit(Mutex* mutex)
@@ -160,11 +156,7 @@ static void SysStrictExit(Mutex* mutex)
 	//释放锁时 如果是任务地址标识不对 则kill掉对应任务
 	if( IsEqual(mutex->lock, gCTaskAddr) )
 	{
-
-		mutex->lock = 0;
-		
-		MtxSchedule(NOTIFY);
-	
+    	SysNormalExit(mutex);
 	}
 	else
 	{
