@@ -69,9 +69,18 @@ void ExitCritical(uint mutex)
 
 uint DestroyMutex(uint mutex)
 {
-  uint ret = 0;
+    uint ret = 0;
 
 	SysCall(1, 3, mutex, &ret);
+
+	return ret;
+}
+
+int ReadKey()
+{
+	uint ret = 0;
+
+	SysCall(2, 0, &ret, 0);
 
 	return ret;
 }

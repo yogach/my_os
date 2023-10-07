@@ -29,6 +29,9 @@ void SysCallHandler(uint type, uint cmd, uint param1, uint param2 ) // __cdecl__
 		 case 1:
 		 	MutexCallHandler(cmd, param1, param2);
 			break;
+		 case 2:
+		 	KeyCallHandler(cmd, param1, param2);
+		 	break;
 		 default:
 		 	break;
    }
@@ -60,6 +63,7 @@ void KeyboardHandler()
 
     PutScanCode(sc);
 
+/*
     uint code = 0;
 
     while( code = FetchKeyCode() )
@@ -82,6 +86,6 @@ void KeyboardHandler()
          PrintChar('\n');
        }
     }
-    
+*/    
     SendEOI(MASTER_EOI_PORT);
 }

@@ -1,6 +1,7 @@
 
 #include "keyboard.h"
 #include "utility.h"
+#include "queue.h"
 
 #define KB_BUFF_SIZE   8
 
@@ -127,6 +128,7 @@ static const KeyCode gKeyMap[] =
 };
 
 static KeyCodeBuff gKCBuff = {0};
+static Queue gKeyWait = {0}; //用于保存需要等待按键输入的任务
 
 //环形缓冲区出栈
 uint FetchKeyCode()
@@ -441,8 +443,34 @@ void PutScanCode(byte sc)
 
 }
 
+static void NotifyAll(uint kc)
+{
+    Event evt = {KeyEvent, (uint)&gKeyWait, 0, 0}; //创建一个事件类型
+    
+	EventSchedule(NOTIFY, &evt);
+}
+
 void KeyboardModInit()
 {
+    Queue_Init(&gKeyWait);
+
     gKCBuff.max = 2;
 }
 
+void KeyCallHandler(uint cmd, uint param1, uint param2)
+{
+	// param 是执行系统调用时传入的返回值地址
+	if( param1 )
+	{
+		uint kc = FetchKeyCode();
+
+		if( kc )
+		{
+			uint* ret = (uint*)param1;
+
+			*ret = kc;
+
+			
+		}
+	}	
+}
