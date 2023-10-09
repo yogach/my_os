@@ -87,5 +87,7 @@ void KeyboardHandler()
        }
     }
 */    
+    NotifyKeyCode();  //在读取到按键输入后 重新将等待按键的任务放入执行队列
+
     SendEOI(MASTER_EOI_PORT);
 }

@@ -445,7 +445,7 @@ void PutScanCode(byte sc)
 
 static void NotifyAll(uint kc)
 {
-    Event evt = {KeyEvent, (uint)&gKeyWait, 0, 0}; //创建一个事件类型
+    Event evt = {KeyEvent, (uint)&gKeyWait, kc, 0}; //创建一个事件类型 键值做为参数传入
     
 	EventSchedule(NOTIFY, &evt);
 }
@@ -457,12 +457,22 @@ void KeyboardModInit()
     gKCBuff.max = 2;
 }
 
+void NotifyKeyCode()
+{
+	uint kc = FetchKeyCode();
+
+	if( kc )
+	{
+		NotifyAll(kc);
+	}
+}
+
 void KeyCallHandler(uint cmd, uint param1, uint param2)
 {
 	// param 是执行系统调用时传入的返回值地址
 	if( param1 )
 	{
-		uint kc = FetchKeyCode();
+		uint kc = FetchKeyCode(); //读取按键值 如果可读则直接返回
 
 		if( kc )
 		{
@@ -470,7 +480,14 @@ void KeyCallHandler(uint cmd, uint param1, uint param2)
 
 			*ret = kc;
 
-			
+		    NotifyAll(kc);	
+		}
+		else
+		{
+			//进入此处说明没有按键事件 将任务放入按键等待队列
+			Event* evt = CreateEvent(KeyEvent, (uint)&gKeyWait, param1, 0);
+
+			EventSchedule(WAIT, evt);
 		}
 	}	
 }

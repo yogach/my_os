@@ -399,6 +399,29 @@ static void MutexSchedule(uint action, Event* event)
 
 static void KeySchedule(uint action, Event* event)
 {
+    Queue* wait = (Queue*)event->id;
+
+    if( action == NOTIFY )
+    {
+		uint kc = event->param1; //获取按键值
+		ListNode* pos = NULL;
+
+        //取出等待队列中的每一个节点
+		List_ForEach((list*)wait, pos)
+		{
+			TaskNode* tn = (TaskNode*)pos;
+			Event* we = tn->task.event;
+			uint* ret = (uint*)we->param1; //这个值就是读取按键系统调用的返回值地址
+
+			*ret = kc;
+		}
+
+		WaittingToReady(wait);
+    }
+	else if( action == WAIT )
+	{
+		WaitEvent(wait, event);
+	}
 }
 
 void EventSchedule(uint action, Event* event)
