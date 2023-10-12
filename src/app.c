@@ -4,6 +4,7 @@
 #include "syscall.h"
 #include "demo1.h"
 #include "demo2.h"
+#include "shell.h"
 
 int i = 0;
 uint g_mutex = 0;
@@ -24,7 +25,9 @@ void AppMain()
 	//RegApp("HaveDinner", HaveDinner, 255);
 
 	//RunDemo1();
-	RunDemo2();	
+	//RunDemo2();	
+
+	RegApp("shell", shell, 255);
 }
 
 

@@ -407,7 +407,7 @@ static void KeySchedule(uint action, Event* event)
 		ListNode* pos = NULL;
 
         //取出等待队列中的每一个节点
-		List_ForEach((list*)wait, pos)
+		List_ForEach((List*)wait, pos)
 		{
 			TaskNode* tn = (TaskNode*)pos;
 			Event* we = tn->task.event;

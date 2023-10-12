@@ -2,6 +2,8 @@
 #include "keyboard.h"
 #include "utility.h"
 #include "queue.h"
+#include "event.h"
+#include "task.h"
 
 #define KB_BUFF_SIZE   8
 
