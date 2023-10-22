@@ -2,6 +2,8 @@
 #ifndef SCREEN_H
 #define SCREEN_H
 
+#include "type.h"
+
 #define SCREEN_WIDTH    80
 #define SCREEN_HEIGHT   25
 
@@ -29,5 +31,8 @@ int PrintChar(char c);
 int PrintString(const char* s);
 int PrintIntDec(int n);
 int PrintIntHex(unsigned int n);
+byte GetPrintPosH();
+byte GetPrintPosW();
+
 
 #endif

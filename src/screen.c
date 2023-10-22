@@ -6,6 +6,17 @@ static int  gPosW = 0;
 static int  gPosH = 0;
 static char gColor = SCREEN_WHITE;
 
+byte GetPrintPosH()
+{
+    return gPosH;
+}
+
+byte GetPrintPosW()
+{
+    return gPosW;
+}
+
+
 void ClearScreen()
 {
     int w = 0;

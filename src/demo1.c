@@ -3,6 +3,7 @@
 #include "memory.h"
 #include "syscall.h"
 #include "list.h"
+#include "screen.h"
 
 typedef struct
 {
@@ -65,7 +66,7 @@ void ProducerA()
     int run = 1;
         
     
-    SetPrintPos(0, 12);
+    SetPrintPos(TASK_START_W, TASK_START_H);
     
     PrintString(__FUNCTION__);
 
@@ -82,7 +83,7 @@ void ProducerA()
 
 				g_num++;
 
-        SetPrintPos(12 + next, 12);
+            SetPrintPos(TASK_START_W + 12 + next, TASK_START_H);
         PrintChar(p);
         
         next++;
@@ -103,7 +104,7 @@ void ProducerB()
     int next = 0;
     int run = 1;
     
-    SetPrintPos(0, 14);
+    SetPrintPos(TASK_START_W, TASK_START_H + 2);
     
     PrintString(__FUNCTION__);
 
@@ -120,7 +121,7 @@ void ProducerB()
 
 				g_num++;
 
-        SetPrintPos(12 + next, 14);
+            SetPrintPos(TASK_START_W + 12 + next, TASK_START_H + 2);
         PrintChar(p);
         
         next++;
@@ -141,7 +142,7 @@ void ConsumerA()
     int next = 0;
     int run = 1;
     
-    SetPrintPos(0, 16);
+    SetPrintPos(TASK_START_W, TASK_START_H + 4);
     
     PrintString(__FUNCTION__);
 
@@ -154,7 +155,7 @@ void ConsumerA()
       //在get不为0的情况下获取A类产品
 			if( (run = (g_get > 0)) && Fetch('A', &p) )
 			{
-          SetPrintPos(12 + next++, 16);
+            SetPrintPos(TASK_START_W + 12 + next++, TASK_START_H + 4);
           PrintChar(p);
 
 					g_get -- ;
@@ -175,7 +176,7 @@ void ConsumerB()
     int next = 0;
     int run = 1;
     
-    SetPrintPos(0, 18);
+    SetPrintPos(TASK_START_W, TASK_START_H + 6);
     
     PrintString(__FUNCTION__);
 
@@ -188,7 +189,7 @@ void ConsumerB()
       //在get不为0的情况下 获取B类产品
 			if( (run = (g_get > 0)) && Fetch('B', &p) )
 			{
-          SetPrintPos(12 + next++, 18);
+            SetPrintPos(TASK_START_W + 12 + next++, TASK_START_H + 6);
           PrintChar(p);
 
 					g_get -- ;
@@ -197,7 +198,7 @@ void ConsumerB()
 			ExitCritical(g_mutex);
 
 			if( run )
-				Delay(next % 2 + 1);
+            Delay(2);
 			else
 				break;
 
@@ -208,6 +209,8 @@ void ConsumerB()
 static void Initialize()
 {
     g_mutex = CreateMutex(Strict);
+    g_num = 0;
+    g_get = NUM;
     
     List_Init(&g_store);
 }
@@ -220,7 +223,7 @@ static void Deinit()
     Wait("CA");
     Wait("CB");
 
-    SetPrintPos(0, 20);
+    SetPrintPos(TASK_START_W, TASK_START_H + 8);
     PrintString(__FUNCTION__);
 
     DestroyMutex(g_mutex);
@@ -233,7 +236,7 @@ void RunDemo1()
    RegApp("PA", ProducerA, 255);
    RegApp("PB", ProducerB, 255);
    RegApp("CA", ConsumerA, 255);
-   RegApp("CA", ConsumerB, 255);
+    RegApp("CB", ConsumerB, 255);
 
    RegApp("Deinit", Deinit, 255);
 }

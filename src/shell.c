@@ -1,6 +1,7 @@
 #include "shell.h"
 #include "screen.h"
 #include "syscall.h"
+#include "list.h"
 
 #define BUFF_SIZE      64
 #define PROMPT         "D.T.OS >> "
@@ -10,6 +11,13 @@
 static char gKBuf[BUFF_SIZE] = {0};
 static int  gKIndex = 0;
 static List gCmdList = {0};
+
+typedef struct
+{
+	ListNode header;
+	const char* cmd;
+	void (*run)();
+} CmdRun;
 
 static uint IsKeyDown(uint kc)
 {
@@ -26,24 +34,78 @@ static byte GetKeyCode(uint kc)
     return (byte)(kc >> 8);
 }
 
-static void clear()
+static void Clear()
 {
-	
+	int h = 0;
+	int w = 0;
+
+	SetPrintPos(CMD_START_W, CMD_START_H);
+
+	for(h=CMD_START_H; h<SCREEN_HEIGHT; h++)
+	{
+		for(w=CMD_START_W; w<SCREEN_WIDTH; w++) 
+		{
+			PrintChar(' ');
+		}
+	}
+
+	SetPrintPos(CMD_START_W, CMD_START_H);
+	PrintString(PROMPT);
 }
 
 static void AddCmdEntry(const char* cmd, void(*run))
 {
+	CmdRun* cr = Malloc(sizeof(CmdRun));
 	
+    //添加命令到命令链表
+	if( cr && cmd && run )
+	{
+		cr->cmd = cmd;
+		cr->run = run;
+
+		List_Add(&gCmdList, (ListNode *)cr);
+	}
+	else
+	{
+		Free(cr);
+	}
 }
 
 static int DoCmd(const char* cmd)
 {
+	int ret = 0;
+	ListNode* pos = NULL;
 	
+    //遍历链表 查找是否有对应命令
+	List_ForEach(&gCmdList, pos)
+	{
+		CmdRun* cr = (CmdRun*)pos;
+
+		if( StrCmp(cmd, cr->cmd, -1) )
+		{
+			cr->run();
+			ret = 1;
+			break;
+		}
+	}
+
+	return ret;
 }
 
 static void Unknown(const char* s)
 {
-	
+	int w = 0;
+
+	SetPrintPos(CMD_START_W, CMD_START_H + 1);
+
+	for(w=CMD_START_W; w<SCREEN_WIDTH; w++)
+    {
+        PrintChar(' ');
+    }
+
+	SetPrintPos(CMD_START_W, CMD_START_H + 1);
+	PrintString("Unknow Command: ");
+	PrintString(s);	
 }
 
 static void ResetCmdLine()
@@ -123,10 +185,36 @@ static void Handle(char ch, byte vk)
 	}
 }
 
+static void DoWait()
+{
+	Delay(5);
+	Wait("Deinit");
+	ResetCmdLine();
+}
+
+static void Demo1()
+{
+    RunDemo1();
+    DoWait();  //等待任务执行完毕
+}
+
+static void Demo2()
+{
+    RunDemo2();
+    DoWait();
+}
+
+
 void shell()
 {
-    SetPrintPos(0, 9);
-    PrintString("D.T.OS >> ");
+    List_Init(&gCmdList);
+
+	AddCmdEntry("clear", Clear);
+	AddCmdEntry("demo1", Demo1);
+	AddCmdEntry("demo2", Demo2);
+
+    SetPrintPos(CMD_START_W, CMD_START_H);
+    PrintString(PROMPT);	
 
     while(1)
     {
@@ -136,11 +224,8 @@ void shell()
 		{
             char ch = GetChar(key);
             uint vk = GetKeyCode(key);
-            
-            if( ch )
-            {
-                PrintChar(ch);
-            } 
+
+			Handle(ch, vk);             
 		}
        
     }
