@@ -122,7 +122,11 @@ BLMain:
     
     cmp dx, 0
     jz KernelErr
-    
+
+    ; get hardware memory size
+    call GetMemSize
+
+    ; store key global info for kernel    
     call StoreGlobal
 
     ; 1. load GDT
@@ -189,6 +193,38 @@ InitDescItem:
     
     pop eax
     
+    ret
+
+;
+;
+GetMemSize:
+    mov dword [MemSize], 0
+
+    xor eax, eax
+    mov eax, 0xE801
+
+    int 0x15 ;调用bios中断 获取物理内存大小
+
+    jc geterr
+
+    shl eax, 10  ; eax = eax * 1024
+
+    shl ebx, 6 + 10 ; ebx = ebx * 64 * 1024
+    
+    ;因为内存黑洞的存在 需要加上缺掉的1M
+    mov ecx, 1
+    shl ecx, 20 ; ecx = 1024 * 1024
+
+    add dword [MemSize], eax
+    add dword [MemSize], ebx
+    add dword [MemSize], ecx
+
+    jmp getok
+
+geterr:
+    mov dword [MemSize], 0
+
+getok:
     ret
  
 ;

@@ -18,7 +18,9 @@ void EnterCritical(uint mutex);
 void ExitCritical(uint mutex);
 uint DestroyMutex(uint mutex);
 void RegApp(const char* name, void (*tmain)(), byte pri);
+
 int ReadKey();
+int GetMemSize();
 
 
 #endif

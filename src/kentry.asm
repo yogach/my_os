@@ -17,6 +17,8 @@ global WritePort
 extern gGdtInfo
 extern gIdtInfo
 extern gCTaskAddr
+extern gMemSize;
+
 extern KMain
 extern RunTask
 extern LoadTask
@@ -129,7 +131,10 @@ InitGlobal:
      mov dword [SendEOI], eax
      
      mov eax, dword [LoadTaskEntry]
-     mov dword [LoadTask], eax     
+     mov dword [LoadTask], eax
+
+     mov eax, dword [MemSize]
+     mov dword [gMemSize], eax 
                     
      leave  ;关闭栈帧
      

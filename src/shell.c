@@ -34,6 +34,25 @@ static byte GetKeyCode(uint kc)
     return (byte)(kc >> 8);
 }
 
+static void Mem()
+{
+	uint ms = GetMemSize() >> 20;
+    int w = 0;
+
+    SetPrintPos(CMD_START_W, CMD_START_H + 1);
+    
+    for(w=CMD_START_W; w<SCREEN_WIDTH; w++)
+    {
+        PrintChar(' ');
+    }
+    
+    SetPrintPos(CMD_START_W, CMD_START_H + 1);
+    PrintString("Physical Memory: ");
+    PrintIntDec(ms);
+    PrintString(" MB\n");
+	
+}
+
 static void Clear()
 {
 	int h = 0;
