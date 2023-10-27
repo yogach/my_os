@@ -228,6 +228,7 @@ void shell()
 {
     List_Init(&gCmdList);
 
+    AddCmdEntry("mem", Mem);
 	AddCmdEntry("clear", Clear);
 	AddCmdEntry("demo1", Demo1);
 	AddCmdEntry("demo2", Demo2);
