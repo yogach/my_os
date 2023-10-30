@@ -8,6 +8,7 @@
 void KMain()
 {
     void (*AppModInit)() = (void*)BaseOfApp;
+	byte* pn = (byte*)0x475; //平坦内存模式 虚拟地址和实际地址是一样的
 
     int n = PrintString("D.T.OS\n");
     
@@ -27,19 +28,26 @@ void KMain()
     PrintIntDec((uint)gIdtInfo.size);
     PrintChar('\n');
 
+    //打印扫描到的硬盘数
+    PrintString("Number of Hard Disk: ");
+    PrintIntDec(*pn);
+    PrintChar('\n');
+
 	MemModInit(KernelHeapBase, HeapSize);
 
 	KeyboardModInit();
 
 	MutexModInit();
 
-	AppModInit();
+	//AppModInit();
     
     TaskModInit();
     
     IntModInit(); //初始化中断
 
 	ConfigPageTable();
+
+	while(1);
     
     LaunchTask(); //开始执行任务
 }
