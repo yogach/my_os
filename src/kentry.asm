@@ -12,6 +12,8 @@ global KeyboardHandlerEntry
 
 global ReadPort
 global WritePort
+global ReadPortW
+global WritePortW
 
 ; 引用外部的变量
 extern gGdtInfo
@@ -179,6 +181,50 @@ WritePort:
      leave
 
      ret    
+
+;
+; void ReadPortW(ushort port, ushort* buf, uint n)
+;
+ReadPortW:
+     push ebp
+     mov ebp, esp
+
+     mov edx, [ebp + 8]   ;port
+     mov edi, [ebp + 12]  ;buf
+     mov ecx, [ebp + 16]  ;n
+
+     cld
+     rep insw   ;重复ecx次 从edx端口读取 每次读取双字节
+
+     nop
+     nop
+     nop
+
+     leave
+
+     ret
+
+;
+; void WritePortW(ushort port, ushort* buf, uint n)
+;
+WritePortW:
+     push evp
+     mov ebp, esp
+
+     mov edx, [ebp + 8]   ;port
+     mov edi, [ebp + 12]  ;buf
+     mov ecx, [ebp + 16]  ;n
+
+     cld
+     rep outsw  ;重复ecx次 从edx端口写入 每次写入双字节
+
+     nop
+     nop
+     nop
+
+     leave
+
+     ret
 
 ;
 ;

@@ -26,7 +26,19 @@
 #define	STATUS_ERR  0x01
 
 extern byte ReadPort(ushort port);
-void WritePort(ushort port, byte value);
+extern void WritePort(ushort port, byte value);
+extern byte ReadPortW(ushort port, ushort* buf, uint n);
+extern void WritePortW(ushort port, ushort* buf, uint n);
+
+
+typedef struct
+{
+	byte lbaLow;
+	byte lbaMid;
+	byte lbaHigh;
+	byte device;
+	byte command;
+} HDRegValue;
 
 static uint IsBusy()
 {
@@ -56,8 +68,66 @@ static uint MakeDevRegVal(uint si)
 	return 0xE0 | ((si >> 24) & 0x0f);
 }
 
-void HDRawModInit();
-uint HDRawSectors();
+static HDRegValue MakeRegVals(uint si, uint action)
+{
+	HDRegValue ret = {0};
+
+    //地址
+	ret.lbaLow = si & 0xFF;
+	ret.lbaMid = (si >> 8) & 0xFF;
+	ret.lbaHigh = (si >> 16) & 0xFF;
+
+	ret.device = MakeDevRegVal(si); //device内 包含si高24位
+	ret.command = action;
+
+	return ret;	
+}
+
+static void WritePorts(HDRegValue hdrv)
+{
+	WritePort(REG_FEATURES, 0);
+	WritePort(REG_NSECTOR, 1);   //每次读取1扇区
+	WritePort(REG_LBA_LOW, hdrv.lbaLow);
+	WritePort(REG_LBA_MID, hdrv.lbaMid);
+	WritePort(REG_LBA_HIGH, hdrv.lbaHigh);
+	WritePort(REG_DEVICE, hdrv.device);
+	WritePort(REG_COMMAND, hdrv.command);
+
+	WritePort(REG_DEV_CTRL, 0);
+}
+
+void HDRawModInit()
+{
+	
+}
+
+uint HDRawSectors()
+{
+   static uint ret = -1;
+
+   if( (ret == -1) && IsDevReady() )
+   {
+   	 HDRegValue hdrv = MakeRegVals(0, ATA_IDENTIFY);
+	 byte* buf = Malloc(SECT_SIZE);
+
+	 WritePorts(hdrv);
+
+	 if( !IsBusy() && IsDataReady() && buf )
+	 {
+	 	ushort* data = (ushort*)buf;
+
+		ReadPortW(REG_DATA, data, SECT_SIZE);
+
+		ret = (data[61] << 16) | (data[60]);
+	 }
+
+	 Free(buf);
+	
+   }
+
+   return ret;
+}
+
 uint HDRawWrite(uint si, byte* buf);
 uint HDRawRead(uint si, byte* buf);
 
