@@ -128,6 +128,44 @@ uint HDRawSectors()
    return ret;
 }
 
-uint HDRawWrite(uint si, byte* buf);
-uint HDRawRead(uint si, byte* buf);
+uint HDRawWrite(uint si, byte* buf)
+{
+	uint ret = 0;
+
+	if( (si < HDRawSectors()) && buf && !IsBusy() )
+	{
+		HDRegValue hdrv = MakeRegVals(si, ATA_WRITE);
+
+		WritePorts(hdrv);
+
+		if( ret = (!IsBusy() && IsDataReady()) )
+		{
+			ushort* data = (ushort*)buf;
+
+			WritePortW(REG_DATA, data, SECT_SIZE >> 1);
+		}
+	}
+
+	return ret;
+}
+uint HDRawRead(uint si, byte* buf)
+{
+	uint ret = 0;
+
+	if( (si < HDRawSectors()) && buf && !IsBusy() )
+	{
+		HDRegValue hdrv = MakeRegVals(si, ATA_READ);
+
+		WritePorts(hdrv);
+
+		if( ret = (!IsBusy() && IsDataReady()) )
+		{
+			ushort* data = (ushort*)buf;
+
+			ReadPortW(REG_DATA, data, SECT_SIZE >> 1);
+		}
+	}
+
+	return ret;
+}
 
