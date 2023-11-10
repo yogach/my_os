@@ -35,6 +35,42 @@ void KMain()
 
 	MemModInit(KernelHeapBase, HeapSize);
 
+	uint n = HDRawSectors();
+    //打印扫描到的硬盘数
+    PrintString("Number of Sectors: ");
+    PrintIntDec(n);
+    PrintChar('\n');
+
+	pn = Malloc(SECT_SIZE);
+
+	pn[1] = 0xCD;
+	pn[128] = 0xEF;
+	pn[511] = 0xAB;
+
+	n = HDRawWrite(2, pn);
+
+    PrintString("n= ");
+    PrintIntDec(n);
+    PrintChar('\n');
+
+	pn[1] = 0;
+	pn[128] = 0;
+	pn[511] = 0;
+
+	n = HDRawRead(2, pn);
+
+    PrintString("pn[1]= ");
+    PrintIntDec(pn[1]);
+    PrintChar('\n');
+
+    PrintString("pn[128]= ");
+    PrintIntDec(pn[128]);
+    PrintChar('\n');
+
+    PrintString("pn[511]= ");
+    PrintIntDec(pn[511]);
+    PrintChar('\n');	
+
 	KeyboardModInit();
 
 	MutexModInit();

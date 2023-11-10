@@ -32,6 +32,8 @@
 })
 
 void Delay(int n);
+byte* MemCpy(byte* dst, const byte* src, uint n);
+byte* MemSet(byte* dst, uint n, byte val);
 char* StrCpy(char* dst, const char* src, uint n);
 int StrLen(const char* s);
 int StrCmp(const char* left, const char* right, uint n);

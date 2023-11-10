@@ -20,18 +20,78 @@ void Delay(int n)
     }
 }
 
+byte* MemCpy(byte* dst, const byte* src, uint n)
+{
+	byte* ret = dst;
+	uint daddr = (uint)dst;
+	uint saddr = (uint)src;
+	int i = 0;
+
+	if( daddr < saddr )
+	{
+		for(i=n-1; i>=0; i--)
+		{
+			dst[i] = src[i];
+		}
+	}
+	else if( daddr > saddr )
+	{
+		for(i=0; i<n; i++)
+		{
+			dst[i] = src[i];
+		}
+	}
+
+	return ret;
+}
+
+byte* MemSet(byte* dst, uint n, byte val)
+{
+	byte* ret = dst;
+    int i;
+
+    while(i < n)
+    {
+		dst[i] = val;
+		i++;
+    }
+
+	return ret;
+}
+
+
 char* StrCpy(char* dst, const char* src, uint n)
 {
   char* ret = dst;
+  uint daddr = (uint)dst;
+  uint saddr = (uint)src;
   int i = 0;
-
-  for(i=0; src[i] && (i < n); i++)
+ 
+  if( daddr < saddr )
   {
-	  dst[i] = src[i];
+  	//首先计算字符串长度 得到末尾位置
+	uint len = StrLen(src);
+	
+	len = (len < n) ? len : n;
+	
+	dst[len] = 0;
+  
+	for(i=len-1; i>=0 ; i--)
+	{
+		dst[i] = src[i];
+	}
+	
   }
-
-  dst[i] = 0; //结束符
-
+  else if( daddr > saddr )
+  {
+	for(i=0; src[i] && (i < n); i++)
+	{
+		dst[i] = src[i];
+	}
+	
+    dst[i] = 0; //结束符
+  }  
+ 
   return ret;
 }
 
