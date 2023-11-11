@@ -1,4 +1,5 @@
 #include "hdraw.h"
+#include "memory.h"
 
 #define ATA_IDENTIFY    0xEC
 #define ATA_READ        0x20
@@ -27,7 +28,7 @@
 
 extern byte ReadPort(ushort port);
 extern void WritePort(ushort port, byte value);
-extern byte ReadPortW(ushort port, ushort* buf, uint n);
+extern void ReadPortW(ushort port, ushort* buf, uint n);
 extern void WritePortW(ushort port, ushort* buf, uint n);
 
 
@@ -45,7 +46,7 @@ static uint IsBusy()
 	uint ret = 0;
 	uint i = 0;
 
-	while( ret = ((i < 500) && (ReadPort(REG_STATUS) & STATUS_BSY) ) )
+    while( (i < 500) && (ret = (ReadPort(REG_STATUS) & STATUS_BSY)) )
 	{
 		i++;
 	}
@@ -116,7 +117,7 @@ uint HDRawSectors()
 	 {
 	 	ushort* data = (ushort*)buf;
 
-		ReadPortW(REG_DATA, data, SECT_SIZE);
+        ReadPortW(REG_DATA, data, SECT_SIZE >> 1);
 
 		ret = (data[61] << 16) | (data[60]);
 	 }

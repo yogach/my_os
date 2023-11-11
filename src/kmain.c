@@ -4,6 +4,7 @@
 #include "memory.h"
 #include "mutex.h"
 #include "keyboard.h"
+#include "hdraw.h"
 
 void KMain()
 {
@@ -35,10 +36,11 @@ void KMain()
 
 	MemModInit(KernelHeapBase, HeapSize);
 
-	uint n = HDRawSectors();
+	n = HDRawSectors();
     //打印扫描到的硬盘数
     PrintString("Number of Sectors: ");
     PrintIntDec(n);
+	PrintString(" bytes ");
     PrintChar('\n');
 
 	pn = Malloc(SECT_SIZE);
@@ -60,16 +62,16 @@ void KMain()
 	n = HDRawRead(2, pn);
 
     PrintString("pn[1]= ");
-    PrintIntDec(pn[1]);
+    PrintIntHex(pn[1]);
     PrintChar('\n');
 
     PrintString("pn[128]= ");
-    PrintIntDec(pn[128]);
+    PrintIntHex(pn[128]);
     PrintChar('\n');
 
     PrintString("pn[511]= ");
-    PrintIntDec(pn[511]);
-    PrintChar('\n');	
+    PrintIntHex(pn[511]);
+    PrintChar('\n');
 
 	KeyboardModInit();
 

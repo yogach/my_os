@@ -194,7 +194,7 @@ ReadPortW:
      mov ecx, [ebp + 16]  ;n
 
      cld
-     rep insw   ;重复ecx次 从edx端口读取 每次读取双字节
+     rep insw   ;重复ecx次 从edx端口读取 每次读取双字节 读取到edi指向的地址
 
      nop
      nop
@@ -208,15 +208,15 @@ ReadPortW:
 ; void WritePortW(ushort port, ushort* buf, uint n)
 ;
 WritePortW:
-     push evp
+     push ebp
      mov ebp, esp
 
      mov edx, [ebp + 8]   ;port
-     mov edi, [ebp + 12]  ;buf
+     mov esi, [ebp + 12]  ;buf
      mov ecx, [ebp + 16]  ;n
 
      cld
-     rep outsw  ;重复ecx次 从edx端口写入 每次写入双字节
+     rep outsw  ;重复ecx次 从edx端口写入 每次写入双字节 从esi指向的地址上写入
 
      nop
      nop
