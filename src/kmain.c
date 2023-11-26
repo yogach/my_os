@@ -62,15 +62,15 @@ void KMain()
 	n = HDRawRead(2, pn);
 
     PrintString("pn[1]= ");
-    PrintIntHex(pn[1]);
+    PrintIntDec(pn[1]);
     PrintChar('\n');
 
     PrintString("pn[128]= ");
-    PrintIntHex(pn[128]);
+    PrintIntDec(pn[128]);
     PrintChar('\n');
 
     PrintString("pn[511]= ");
-    PrintIntHex(pn[511]);
+    PrintIntDec(pn[511]);
     PrintChar('\n');
 
 	KeyboardModInit();

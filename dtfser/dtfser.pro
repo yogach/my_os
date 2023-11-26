@@ -2,13 +2,13 @@ TEMPLATE = app
 CONFIG += console
 CONFIG -= qt
 
-INCLUDEPATH += ../D.T.OS/
+INCLUDEPATH += ../my_os/
 
 SOURCES += main.c \
     hdraw.c \
-    ../D.T.OS/utility.c
+    ../my_os/utility.c
 
 HEADERS += \
     hdraw.h \
-    ../D.T.OS/utility.h
+    ../my_os/utility.h
 

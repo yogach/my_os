@@ -3,6 +3,7 @@
 
 #include "type.h"
 
+//一个扇区的大小
 #define SECT_SIZE    512
 
 void HDRawSetName(const char* name);

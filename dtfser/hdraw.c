@@ -38,15 +38,15 @@ void HDRawModInit()
 
         fseek(fp, 0L, SEEK_END);
 
-        length = ftell(fp);
+        length = ftell(fp);   //计算文件大小
 
-        gHDBuf = (byte*)malloc(length);
+        gHDBuf = (byte*)malloc(length); //按文件大小分配空间
 
         fseek(fp, 0L, SEEK_SET);
 
-        fread(gHDBuf, 1, length, fp);
+        fread(gHDBuf, 1, length, fp); //将硬盘内容读取到分配到的空间中
 
-        gSectors = length / SECT_SIZE;
+        gSectors = length / SECT_SIZE; //得到扇区数
 
         fclose(fp);
     }
