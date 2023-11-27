@@ -1,5 +1,5 @@
 #include <stdio.h>
-#include "hdraw.h"
+#include "fs.h"
 
 int main(void)
 {
@@ -7,11 +7,8 @@ int main(void)
 
     HDRawModInit();
 
-    byte buf[512] = {0};
-
-    HDRawRead(2, buf);
-
-    printf("%x, %x, %x\n", buf[1], buf[128], buf[511]);
+    printf("format: %d\n", FSFormat());
+    printf("is_formatted: %d\n", FSIsFormatted());
 
     HDRawFlush();
 
