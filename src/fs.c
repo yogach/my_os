@@ -123,8 +123,8 @@ uint FSFormat()
 
 uint FSIsFormatted()
 {
-	FSHeader* header = (FSHeader*)Malloc(SECT_SIZE);
-	FSRoot* root = (FSRoot*)Malloc(SECT_SIZE);
+	FSHeader* header = (FSHeader*)ReadSector(HEADER_SCT_IDX);
+	FSRoot* root = (FSRoot*)ReadSector(ROOT_SCT_IDX);
     uint ret = 0;
 
     if( header && root )
