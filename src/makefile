@@ -15,7 +15,8 @@ KERNEL_SRC := kmain.c \
               keyboard.c \
               event.c  \
               sysinfo.c \
-              hdraw.c
+              hdraw.c \
+              fs.c
 
 APP_SRC := screen.c   \
             utility.c  \

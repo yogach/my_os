@@ -82,7 +82,7 @@ uint FSFormat()
 
 		root->sctNum = 0;
 		root->sctBegin = SCT_END_FLAG;
-		root->sctNum = SECT_SIZE;
+        root->lastBytes = SECT_SIZE;
 
 		ret = ret && HDRawWrite(ROOT_SCT_IDX, (byte*)root);
 		
@@ -125,6 +125,7 @@ uint FSIsFormatted()
 {
 	FSHeader* header = (FSHeader*)Malloc(SECT_SIZE);
 	FSRoot* root = (FSRoot*)Malloc(SECT_SIZE);
+    uint ret = 0;
 
     if( header && root )
     {
