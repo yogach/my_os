@@ -16,15 +16,15 @@
 #define ROOT_SCT_IDX   1                 //根信息扇区号
 #define FIXED_SCT_SIZE 2                 //固定扇区占用数
 #define SCT_END_FLAG   ((uint)-1)
-#define MAP_ITEM_CNT   (SECT_SIZE/sizeof(uint)) //一个扇区内的扇区链表个数
+#define MAP_ITEM_CNT   (SECT_SIZE/sizeof(uint)) //一个扇区内的扇区分配单元个数
 
 typedef struct
 {
 	byte forJmp[4];
 	char magic[32];
-	uint sctNum;  //扇区数
-	uint mapSize; //扇区分配表大小
-	uint freeNum; //空闲扇区数
+	uint sctNum;    //扇区数
+	uint mapSize;   //扇区分配表大小
+	uint freeNum;   //空闲扇区数
 	uint freeBegin; //空闲扇区起始位置
 } FSHeader;
 
@@ -68,11 +68,13 @@ uint FSFormat()
 		uint current = 0;
 
 		StrCpy(header->magic, FS_MAGIC, sizeof(header->magic) - 1);
-		header->sctNum = HDRawSectors();
-		//扇区分配表个数
+		header->sctNum = HDRawSectors(); //获得硬盘的总扇区数
+		//扇区分配表个数 一个扇区为512字节 扇区分配单元占4字节  
 		header->mapSize = (header->sctNum - FIXED_SCT_SIZE) / 129 + !!((header->sctNum - FIXED_SCT_SIZE) % 129);
+		
 		//空闲扇区个数计算 总扇区 - 扇区分配表个数 - 固定扇区个数
 		header->freeNum = header->sctNum - header->mapSize - FIXED_SCT_SIZE; 
+		
 		//空闲扇区起始位置计算 固定扇区 + 扇区分配表个数
 		header->freeBegin = FIXED_SCT_SIZE + header->mapSize;
 
@@ -86,16 +88,18 @@ uint FSFormat()
 
 		ret = ret && HDRawWrite(ROOT_SCT_IDX, (byte*)root);
 		
-        //将扇区链表内的值设置为一一连接 
+        //初始化扇区分配表
 		for(i=0; ret && (i < header->mapSize) && (current < header->freeNum); i++)
 		{
+			//一次操作整个扇区
 			for(j=0; j<MAP_ITEM_CNT; j++)
 			{
-				uint* pInt = AddrOff(p, j);
+				uint* pInt = AddrOff(p, j); 
 
+                //给扇区分配单元设置对应哪一个扇区 扇区数不能超过空闲扇区数
 				if( current < header->freeNum )
 				{
-					*pInt = current + 1;
+					*pInt = current + 1;  
 
 					if( current == (header->freeNum - 1) )
 					{
@@ -110,7 +114,7 @@ uint FSFormat()
 				}
 			}
 
-			ret = ret && HDRawWrite(i + FIXED_SCT_SIZE, (byte*)p);
+			ret = ret && HDRawWrite(i + FIXED_SCT_SIZE, (byte*)p); //将信息写入到硬盘
 		}
 	}
 
