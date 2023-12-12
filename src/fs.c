@@ -36,6 +36,14 @@ typedef struct
 	uint lastBytes; //最后一个扇区内占多少大小
 } FSRoot;
 
+typedef struct
+{
+	uint* pSct;   //扇区分配单元对应扇区的数据
+	uint sctIdx;  //绝对扇区号
+	uint sctOff;  //扇区分配表的第几个扇区
+	uint idxOff;  //对应扇区的第几个扇区分配单元
+} MapPos;
+
 static void* ReadSector(uint si)
 {
 	void* ret = NULL;
@@ -49,6 +57,62 @@ static void* ReadSector(uint si)
 			Free(ret);
 			ret = NULL;
 		}
+	}
+
+	return ret;
+}
+
+static MapPos FindInMap(uint si)
+{
+	MapPos ret = {0};
+	FSHeader* header = (si != SCT_END_FLAG) ? ReadSector(HEADER_SCT_IDX) : NULL;
+
+	if( header )
+	{
+		uint offset = si - header->mapSize - FIXED_SCT_SIZE; //将扇区号转化为可分配扇区的起始的相对扇区号
+		uint sctOff = offset / MAP_ITEM_CNT;   //计算扇区分配单元位置
+		uint idxOff = offset % MAP_ITEM_CNT;
+		uint* ps = ReadSector(sctOff + FIXED_SCT_SIZE); //读取扇区分配单元对应扇区
+
+		if( ps )
+		{
+			ret.pSct = ps;
+			ret.sctIdx = si;
+			ret.sctOff = sctOff;
+			ret.idxOff = idxOff;
+		}
+	}
+	
+
+	Free(header);
+
+	return ret;
+}
+
+static uint AllocSector()
+{
+	uint ret = SCT_END_FLAG;
+	FSHeader* header = ReadSector(HEADER_SCT_IDX);
+
+	if( header && (header->freeBegin != SCT_END_FLAG) )
+	{
+		MapPos mp = FindInMap(header->freeBegin); //找到空闲节点的分配单元
+
+		if( mp.pSct )
+		{
+			uint* pInt = AddrOff(mp.pSct, mp.idxOff); //对应的扇区分配单元
+			uint next = *pInt;   //指向的下一个扇区
+			uint flag = 1;
+
+			ret = header->freeBegin;
+
+			header->freeBegin = next + FIXED_SCT_SIZE + header->mapSize; 
+			header->freeNum --;
+
+			*pInt = SCT_END_FLAG;
+		}
+
+		Free(mp.pSct);
 	}
 
 	return ret;
@@ -127,6 +191,7 @@ uint FSFormat()
 
 uint FSIsFormatted()
 {
+	//读取扇区
 	FSHeader* header = (FSHeader*)ReadSector(HEADER_SCT_IDX);
 	FSRoot* root = (FSRoot*)ReadSector(ROOT_SCT_IDX);
     uint ret = 0;
