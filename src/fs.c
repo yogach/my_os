@@ -106,16 +106,106 @@ static uint AllocSector()
 
 			ret = header->freeBegin;
 
-			header->freeBegin = next + FIXED_SCT_SIZE + header->mapSize; 
+			header->freeBegin = next + FIXED_SCT_SIZE + header->mapSize;  //转化成绝对扇区地址
 			header->freeNum --;
 
-			*pInt = SCT_END_FLAG;
+			*pInt = SCT_END_FLAG; //标记当前扇区已被占用
+
+            //将修改的扇区数据重新写会硬盘  
+			flag = flag && HDRawWrite(HEADER_SCT_IDX, (byte *) header);
+			flag = flag && HDRawWrite(mp.sctOff + FIXED_SCT_SIZE , (byte *)mp.pSct);
+
+			if( !flag )
+			{
+				ret = SCT_END_FLAG;
+			}
 		}
 
 		Free(mp.pSct);
 	}
 
+	Free(header);
+
 	return ret;
+}
+
+static uint FreeSector(uint si)
+{
+	uint ret = 0;
+	FSHeader* header = (si != SCT_END_FLAG) ? ReadSector(HEADER_SCT_IDX) : NULL;
+
+	if( header )
+	{
+		MapPos mp = FindInMap(si); //找到要释放扇区的分配单元
+
+		if( mp.pSct )
+		{
+			uint* pInt = AddrOff(mp.pSct, mp.idxOff); //找到对应的扇区分配单元
+
+            *pInt = header->freeBegin - FIXED_SCT_SIZE - header.mapSize; //扇区分配单元内存放的是相对位置
+
+			header->freeBegin = si; //将释放的扇区放在空闲扇区的首位
+			header->freeNum ++;
+
+			ret = HDRawWrite(HEADER_SCT_IDX, (byte*)header)
+                  && HDRawWrite(mp.sctOff + FIXED_SCT_SIZE, (byte*)mp.pSct);
+		}
+
+		Free(mp.pSct);
+	}
+
+	Free(header);
+
+	return ret;
+	
+}
+
+static uint NextSector(uint si)
+{
+	uint ret = SCT_END_FLAG;
+	FSHeader* header = (si != SCT_END_FLAG) ? ReadSector(HEADER_SCT_IDX) : NULL;
+
+	if( header )
+	{
+		MapPos mp = FindInMap(si); //找到要释放扇区的分配单元
+
+		if( mp.pSct )
+		{
+			uint* pInt = AddrOff(mp.pSct, mp.idxOff); //找到对应的扇区分配单元
+
+			if(*pInt != SCT_END_FLAG)
+			{
+				ret = *pInt + header->mapSize + FIXED_SCT_SIZE;
+			}
+ 		}
+
+		Free(mp.pSct);
+	}
+
+	Free(header);
+
+	return ret;
+    	
+}
+
+static uint FindLast(uint sctBegin)
+{
+	
+}
+
+static uint FindPrev(uint sctBegin, uint si)
+{
+	
+}
+
+static uint FindIndex(uint sctBegin, uint idx)
+{
+	
+}
+
+static uint MarkSector(uint si)
+{
+	
 }
 
 uint FSFormat()
