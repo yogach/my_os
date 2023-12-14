@@ -188,24 +188,75 @@ static uint NextSector(uint si)
     	
 }
 
+//找到最后一个扇区
 static uint FindLast(uint sctBegin)
 {
-	
+	uint ret = SCT_END_FLAG;
+	uint next = sctBegin;
+
+	while( next != SCT_END_FLAG )
+	{
+		ret = next;
+		next = NextSector(next);
+	}
+
+	return ret;
 }
 
+//找到前一扇区
 static uint FindPrev(uint sctBegin, uint si)
 {
-	
+	uint ret = SCT_END_FLAG;
+	uint next = sctBegin;
+
+	while( (next != SCT_END_FLAG) && (next != si) )
+	{
+		ret = next;
+		next = NextSector(next);
+	}
+
+	if( next == SCT_END_FLAG )
+	{
+		ret = SCT_END_FLAG;
+	}
+
+	return ret;
 }
 
+//找到第idx个扇区
 static uint FindIndex(uint sctBegin, uint idx)
 {
-	
+	uint ret = sctBegin;
+	uint i = 0;
+
+    while( (i < idx) && ( ret != SCT_END_FLAG) )
+    {
+		ret = NextSector(ret);
+
+		i++;
+    }
+
+	return ret;
 }
 
+//标记扇区
 static uint MarkSector(uint si)
 {
-	
+	uint ret = (si == SCT_END_FLAG) ? 1 : 0;
+	MapPos mp = FindInMap(si);
+
+	if( mp.pSct )
+	{
+		uint *pInt = AddrOff(mp.pSct, mp.idxOff);
+
+		*pInt = SCT_END_FLAG;
+
+		ret = HDRawWrite(mp.sctOff + FIXED_SCT_SIZE, (byte *)mp.pSct);
+	}
+
+	Free(mp.pSct);
+
+	return ret;
 }
 
 uint FSFormat()
