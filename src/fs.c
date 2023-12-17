@@ -142,7 +142,7 @@ static uint FreeSector(uint si)
 		{
 			uint* pInt = AddrOff(mp.pSct, mp.idxOff); //找到对应的扇区分配单元
 
-            *pInt = header->freeBegin - FIXED_SCT_SIZE - header.mapSize; //扇区分配单元内存放的是相对位置
+            *pInt = header->freeBegin - FIXED_SCT_SIZE - header->mapSize; //扇区分配单元内存放的是相对位置
 
 			header->freeBegin = si; //将释放的扇区放在空闲扇区的首位
 			header->freeNum ++;
@@ -158,6 +158,42 @@ static uint FreeSector(uint si)
 
 	return ret;
 	
+}
+
+void test_Alloc_free()
+{
+	printf("test()..\n");
+
+	uint a[5] = {0};
+	int i = 0;
+
+	FSHeader* header = (FSHeader*)ReadSector(HEADER_SCT_IDX);
+
+	printf("free sector = %d\n", header->freeNum);
+
+	for(i=0; i<5; i++)
+	{
+		a[i] = AllocSector();
+	}
+
+	Free(header);
+	
+	header = (FSHeader*)ReadSector(HEADER_SCT_IDX);
+	printf("free sector = %d\n", header->freeNum);
+
+	for(i=0; i<5; i++)
+	{
+		printf("a[%d]= %d\n", i, a[i]);
+		FreeSector(a[i]);
+	}
+
+	Free(header);
+
+	header = (FSHeader*)ReadSector(HEADER_SCT_IDX);
+	printf("free sector = %d\n", header->freeNum);
+
+	
+	Free(header);
 }
 
 static uint NextSector(uint si)
@@ -186,6 +222,32 @@ static uint NextSector(uint si)
 
 	return ret;
     	
+}
+
+void test_next_sector()
+{
+	printf("test()..\n");
+
+	uint n = 0;
+	uint next = 0;
+
+	FSHeader* header = (FSHeader*)ReadSector(HEADER_SCT_IDX);
+
+	printf("free sector = %d\n", header->freeNum);
+
+	next = header->freeBegin;
+
+	while( next != SCT_END_FLAG )
+	{
+		n++;
+
+		next = NextSector(next);
+		
+	}
+
+	printf("n = %d\n", n);
+	
+	Free(header);
 }
 
 //找到最后一个扇区
