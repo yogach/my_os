@@ -38,6 +38,18 @@ typedef struct
 
 typedef struct
 {
+	char name[32];
+	uint sctBegin;  //起始扇区
+	uint sctNum;    //总共占多少扇区
+	uint lastBytes; //最后一个扇区内占多少大小
+	uint type;
+	uint inSctIdx;
+	uint inSctOff;
+	uint reserved[2];
+} FileEntry;
+
+typedef struct
+{
 	uint* pSct;   //扇区分配单元对应扇区的数据
 	uint sctIdx;  //绝对扇区号
 	uint sctOff;  //扇区分配表的第几个扇区
@@ -320,6 +332,102 @@ static uint MarkSector(uint si)
 
 	return ret;
 }
+
+static void AddToLast(uint sctBegin, uint si)
+{
+	uint last = FindLast(sctBegin);
+
+	if( last != SCT_END_FLAG )
+	{
+		//找到对应的扇区分配单元 
+		MapPos lmp = FindInMap(last);
+		MapPos smp = FindInMap(si);
+
+		if( lmp.pSct &&  smp.pSct )
+		{
+			//判断要处理的是否在同一个扇区
+			if( lmp.sctOff == smp.sctOff )
+			{
+				uint* pInt = AddrOff(lmp.pSct, lmp.idxOff);
+
+				*pInt = lmp.sctOff * MAP_ITEM_CNT + smp.idxOff; //将last的扇区分配表上的值设为si在扇区分配表中的序号
+
+				pInt = AddrOff(lmp.pSct, smp.idxOff);
+
+				*pInt = SCT_END_FLAG;
+
+				HDRawWrite(lmp.sctOff + FIXED_SCT_SIZE, (byte *)lmp.pSct);
+			}
+			else
+			{
+				uint* pInt = AddrOff(lmp.pSct, lmp.idxOff);
+
+				*pInt = smp.sctOff * MAP_ITEM_CNT + smp.idxOff; //将last的扇区分配表上的值设为si在扇区分配表中的序号
+
+				pInt = AddrOff(smp.pSct, smp.idxOff);
+
+				*pInt = SCT_END_FLAG;
+
+				HDRawWrite(lmp.sctOff + FIXED_SCT_SIZE, (byte *)lmp.pSct);
+				HDRawWrite(smp.sctOff + FIXED_SCT_SIZE, (byte *)smp.pSct);				
+			}
+
+
+		}
+
+		Free(lmp.pSct);
+		Free(smp.pSct);
+	}
+}
+
+static uint CheckStorge(FSRoot* fe)
+{
+	uint ret = 0;
+
+    //判断扇区是否已经被写满了
+	if( fe->lastBytes == SECT_SIZE )
+	{
+		uint si = AllocSector();  //分配一个扇区
+
+		if( si != SCT_END_FLAG )
+		{
+			if( fe->sctBegin == SCT_END_FLAG )
+			{
+				fe->sctBegin = si;
+			}
+			else
+			{
+				AddToLast(fe->sctBegin, si);
+			}
+
+			fe->sctNum ++;
+			fe->lastBytes = 0;
+
+			ret = 1;
+		}
+	}
+
+	return ret;
+}
+
+static uint CreateFileEntry(const char* name, uint sctBegin, uint lastbytes)
+{
+	uint ret = 0;
+	uint last = FindLast(sctBegin);
+	
+
+	return ret;
+}
+
+uint FCreate(const char* fn)
+{
+	
+}
+
+uint FExisted(const char* fn)
+{
+}
+
 
 uint FSFormat()
 {
