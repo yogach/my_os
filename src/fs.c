@@ -16,6 +16,8 @@
 #define ROOT_SCT_IDX   1                 //根信息扇区号
 #define FIXED_SCT_SIZE 2                 //固定扇区占用数
 #define SCT_END_FLAG   ((uint)-1)
+#define FE_BYTES       sizeof(FileEntry)
+#define FE_ITEM_CNT    (SECT_SIZE/FE_BYTES)  //一个扇区内能保存几个文件描述单元
 #define MAP_ITEM_CNT   (SECT_SIZE/sizeof(uint)) //一个扇区内的扇区分配单元个数
 
 typedef struct
@@ -43,8 +45,8 @@ typedef struct
 	uint sctNum;    //总共占多少扇区
 	uint lastBytes; //最后一个扇区内占多少大小
 	uint type;
-	uint inSctIdx;
-	uint inSctOff;
+	uint inSctIdx;  //文件描述单元在根目录第几个扇区
+	uint inSctOff;  //文件描述单元在根目录第几个扇区中的偏移位置
 	uint reserved[2];
 } FileEntry;
 
@@ -410,12 +412,141 @@ static uint CheckStorge(FSRoot* fe)
 	return ret;
 }
 
-static uint CreateFileEntry(const char* name, uint sctBegin, uint lastbytes)
+static uint CreateFileEntry(const char* name, uint sctBegin, uint lastBytes)
 {
 	uint ret = 0;
 	uint last = FindLast(sctBegin);
+	FileEntry* feBase = NULL;
+
+	if( (last != SCT_END_FLAG) && (feBase == (FileEntry*)ReadSector(last)) )
+	{
+		uint offset = lastBytes / FE_BYTES; //得到空闲的文件描述单元的位置
+		FileEntry* fe = AddrOff(feBase, offset);
+
+		StrCpy(fe->name, name, sizeof(fe->name) - 1); //拷贝文件名
+
+		fe->type = 0;
+		fe->sctBegin = SCT_END_FLAG;
+		fe->sctNum = 0;
+		fe->inSctIdx = last;
+		fe->inSctOff = offset;
+		fe->lastBytes = SECT_SIZE;
+
+		ret = HDRawWrite(last, (byte *) feBase);		
+	}
 	
 
+	return ret;
+}
+
+static uint CreateInRoot(const char* name)
+{
+	FSRoot* root = (FSRoot*)ReadSector(ROOT_SCT_IDX);
+	uint ret = 0;
+
+    if( root )
+    {
+		CheckStorge(root);
+
+		if( CreateFileEntry(name, root->sctBegin, root->lastBytes) )
+		{
+			root->lastBytes += FE_BYTES;
+
+			ret = HDRawWrite(ROOT_SCT_IDX, (byte*)root);
+		}
+    }
+
+	Free(root);
+
+	return ret;
+}
+
+static FileEntry* FindInSector(const char* name, FileEntry* febase, uint cnt)
+{
+	FileEntry* ret = NULL;
+    uint i = 0;
+
+    //遍历传入的文件描述符单元
+	for(i=0; i<cnt; i++)
+	{
+		FileEntry* fe = AddrOff(febase, i);
+
+        //比较名字
+		if( StrCmp(fe->name, name, -1) )
+		{
+			ret = (FileEntry*)Malloc(FE_BYTES);
+
+			if( ret )
+			{
+				*ret = *fe; //结构体赋值可以这样？
+			}
+
+			break;
+		}
+	}
+   
+
+	return ret;
+}
+
+static FileEntry* FindFileEntry(const char* name, uint sctBegin, uint sctNum, uint lastBytes)
+{
+	FileEntry* ret = NULL;
+	uint next = sctBegin;
+	uint i = 0;
+
+    //先查找最后一个扇区前面的所有扇区 因为需要查找全部
+	for(i=0; i<(sctNum-1); i++)
+	{
+		FileEntry* febase = (FileEntry*)ReadSector(next);
+
+		if( febase )
+		{
+			ret = FindInSector(name, febase, FE_ITEM_CNT);
+		}
+
+		Free(febase);
+
+		if( !ret )
+		{
+			next = NextSector(next);
+		}
+		else
+		{
+			break;
+		}
+	}
+
+    //查找完最后一个扇区前面的所有扇区后 
+    //如果还没有找到则继续查找最后一个扇区
+	if( !ret )
+	{
+		uint cnt = lastBytes/FE_BYTES;
+        FileEntry* febase = (FileEntry*)ReadSector(next);
+		
+        if( febase )
+        {
+			ret = FindInSector(name, febase, cnt);
+        }
+
+		Free(febase);
+	}
+
+	return ret;
+}
+
+static FileEntry* FindInRoot(const char* name)
+{
+	FSRoot* root = (FSRoot*)ReadSector(ROOT_SCT_IDX);
+	FileEntry* ret = NULL;
+
+	if( root && root->sctNum )
+	{
+		ret = FindFileEntry(name, root->sctBegin, root->sctNum, root->lastBytes);
+	}
+
+    Free(root);
+	
 	return ret;
 }
 
