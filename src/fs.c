@@ -461,6 +461,35 @@ static uint CreateInRoot(const char* name)
 	return ret;
 }
 
+void test_create_root()
+{
+	uint r = CreateInRoot("test.txt");
+
+	printf("create = %d\n", r);
+
+	if( r )
+	{
+		FSRoot* root = (FSRoot*)ReadSector(ROOT_SCT_IDX);
+		FileEntry* feBase = (FileEntry*)ReadSector(root->sctBegin);
+		int i = 0;
+		int n = 0;
+
+		printf("sctNum = %d\n", root->sctNum);
+		printf("lastBytes = %d\n", root->lastBytes);
+
+		n = root->lastBytes / FE_BYTES;
+
+		for(i=0; i<n; i++)
+		{
+			FileEntry* fe = AddrOff(feBase, i);
+			printf("name = %s\n", fe->name);
+		}
+
+        Free(feBase);
+		Free(root);
+	}
+}
+
 static FileEntry* FindInSector(const char* name, FileEntry* febase, uint cnt)
 {
 	FileEntry* ret = NULL;
@@ -478,7 +507,7 @@ static FileEntry* FindInSector(const char* name, FileEntry* febase, uint cnt)
 
 			if( ret )
 			{
-				*ret = *fe; //结构体赋值可以这样？
+				*ret = *fe; //结构体赋值确实可以这样 但是属于浅拷贝
 			}
 
 			break;
@@ -550,13 +579,38 @@ static FileEntry* FindInRoot(const char* name)
 	return ret;
 }
 
+void test_findInRoot()
+{
+	if( FindInRoot("test.txt") )
+		printf("test.txt is found!\n");
+}
+
 uint FCreate(const char* fn)
 {
-	
+	uint ret = FExisted(fn);
+
+	if( ret == FS_NONEXISTED )
+	{
+		ret = CreateInRoot(fn) ? FS_SUCCEED : FS_FAILED;
+	}
+
+	return ret;
 }
 
 uint FExisted(const char* fn)
 {
+	uint ret = FS_FAILED;
+
+	if( fn )
+	{
+		FileEntry* fe =FindInRoot(fn);
+
+		ret = fe ? FS_EXISTED : FS_NONEXISTED;
+
+		Free(fe);
+	}
+
+	return ret;
 }
 
 
