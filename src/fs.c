@@ -8,6 +8,7 @@
   #define Free free
 #else
   #include "memory.h"
+  #define printf 
 #endif
 
 #define FS_MAGIC       "DTFS-v1.0"
@@ -418,7 +419,7 @@ static uint CreateFileEntry(const char* name, uint sctBegin, uint lastBytes)
 	uint last = FindLast(sctBegin);
 	FileEntry* feBase = NULL;
 
-	if( (last != SCT_END_FLAG) && (feBase == (FileEntry*)ReadSector(last)) )
+	if( (last != SCT_END_FLAG) && (feBase = (FileEntry*)ReadSector(last)) )
 	{
 		uint offset = lastBytes / FE_BYTES; //得到空闲的文件描述单元的位置
 		FileEntry* fe = AddrOff(feBase, offset);
@@ -435,6 +436,7 @@ static uint CreateFileEntry(const char* name, uint sctBegin, uint lastBytes)
 		ret = HDRawWrite(last, (byte *) feBase);		
 	}
 	
+    Free(feBase);
 
 	return ret;
 }
