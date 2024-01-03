@@ -157,7 +157,7 @@ static uint FreeSector(uint si)
 		{
 			uint* pInt = AddrOff(mp.pSct, mp.idxOff); //找到对应的扇区分配单元
 
-            *pInt = header->freeBegin - FIXED_SCT_SIZE - header->mapSize; //扇区分配单元内存放的是相对位置
+            *pInt = header->freeBegin - FIXED_SCT_SIZE - header->mapSize; //扇区分配单元内存放的是相对位置 转化成绝对扇区地址
 
 			header->freeBegin = si; //将释放的扇区放在空闲扇区的首位
 			header->freeNum ++;
@@ -316,7 +316,7 @@ static uint FindIndex(uint sctBegin, uint idx)
 	return ret;
 }
 
-//标记扇区
+//标记当前扇区是末尾扇区
 static uint MarkSector(uint si)
 {
 	uint ret = (si == SCT_END_FLAG) ? 1 : 0;
@@ -615,6 +615,114 @@ uint FExisted(const char* fn)
 	return ret;
 }
 
+static uint IsOpened(const char* name)
+{
+	uint ret = 0;
+
+	return ret;
+}
+
+static uint FreeFile(uint sctBegin)
+{
+	uint slider = sctBegin;
+	uint ret = 0;
+
+    //遍历并释放所有扇区
+	while( slider != SCT_END_FLAG )
+	{
+		uint next = NextSector(slider);
+
+		ret += FreeSector(slider);
+
+		slider = next;
+	}
+
+	return ret;
+}
+
+static void MoveFileEntry(FileEntry* dst, FileEntry* src)
+{
+	uint inSctIdx = dst->inSctIdx;
+	uint inSctOff = dst->inSctOff;
+
+	*dst = *src;
+
+	dst->inSctIdx = inSctIdx;
+	dst->inSctOff = inSctOff;
+}
+
+//调整存储空间 主要是调整扇区
+static uint AdjustStorage(FSRoot* fe)
+{
+	uint ret = 0;
+
+	if( !fe->lastBytes )
+	{
+		uint last = FindLast(fe->sctBegin);
+		uint prev = FindPrev(fe->sctBegin, last);
+
+        //释放最后一个扇区 并标记最后一个扇区的前一个扇区为末尾
+		if( FreeSector(last) && MarkSector(prev) )
+		{
+			fe->sctNum--;
+			fe->lastBytes = SECT_SIZE;
+
+			if( !fe->sctNum )
+			{
+				fe->sctBegin = SCT_END_FLAG;
+			}
+
+			ret = 1;
+		}
+	}
+
+	return ret;
+}
+
+static uint EraseLast(FSRoot* fe, uint bytes)
+{
+	uint ret = 0;
+
+	while( fe->sctNum && bytes )
+	{
+		//判断需要删除的长度
+		if( bytes < fe->lastBytes )
+		{
+			fe->lastBytes -=bytes;
+
+			ret += bytes;
+
+			bytes = 0;
+		}
+		else
+		{
+			bytes -= fe->lastBytes;
+
+			ret += fe->lastBytes;
+
+			fe->lastBytes = 0;
+
+			AdjustStorage(fe);
+		}
+	}
+
+	return ret;
+}
+
+static uint DeleteInRoot(const char* name)
+{
+	FSRoot* root = (FSRoot*)ReadSector(ROOT_SCT_IDX);
+	FileEntry* fe = FindInRoot(name); //找到需要删除文件的扇区分配信息
+	uint ret = 0;
+
+    if( root && fe )
+    {
+		uint last = FindLast(root->sctBegin);
+		FileEntry* feTarget = ReadSector(fe->inSctIdx);
+    }
+
+	return ret;
+}
 
 uint FSFormat()
 {
