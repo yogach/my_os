@@ -718,10 +718,39 @@ static uint DeleteInRoot(const char* name)
     if( root && fe )
     {
 		uint last = FindLast(root->sctBegin);
+		//找到目标和最后一个
 		FileEntry* feTarget = ReadSector(fe->inSctIdx);
+		FileEntry* feLast = (last != SCT_END_FLAG) ? ReadSector(last) : NULL;
+
+		if( feTarget && feLast )
+		{
+			uint lastOff = root->lastBytes / FE_BYTES - 1;
+			FileEntry* lastItem = AddrOff(feLast, lastOff);
+			FileEntry* targetItem = AddrOff(feTarget, fe->inSctOff);
+
+			FreeFile(targetItem->sctBegin);
+
+			MoveFileEntry(targetItem, lastItem);
+
+			EraseLast(root, FE_BYTES);
+
+			ret = HDRawWrite(ROOT_SCT_IDX, (byte *) root) &&
+				    HDRawWrite(fe->inSctIdx, (byte *) feTarget);
+		}
+
+		Free(feTarget);
+		Free(feLast);
     }
 
+	Free(root);
+	Free(fe);
+
 	return ret;
+}
+
+uint FDelete(const char* fn)
+{
+	return fn && !IsOpened(fn) && DeleteInRoot(fn) ? FS_SUCCEED : FS_FAILED;
 }
 
 uint FSFormat()
@@ -813,4 +842,45 @@ uint FSIsFormatted()
 	Free(root);
 
 	return ret;		
+}
+
+static uint FlushFileEntry(FileEntry* fe)
+{
+	uint ret = 0;
+	FileEntry* feBase = ReadSector(fe->inSctIdx);
+	FileEntry* feInSct = AddrOff(feBase, fe->inSctOff);
+
+	*feInSct = *fe;
+
+	ret = HDRawWrite(fe->inSctIdx, (byte *) feBase);
+
+	Free(feBase);
+
+	return ret;
+}
+
+uint FRename(const char* ofn, const char* nfn)
+{
+	uint ret = FS_FAILED;
+
+	if( ofn && !IsOpened(ofn) && nfn )
+	{
+		FileEntry* ofe = FindInRoot(ofn);
+		FileEntry* nfe = FindInRoot(nfn);
+
+		if( ofe && !nfe )
+		{
+			StrCpy(ofe->name, nfn, sizeof(ofe->name) - 1);
+
+			if( FlushFileEntry(ofe) )
+			{
+				ret = FS_SUCCEED;
+			}
+		}
+
+		Free(ofe);
+		Free(nfe);
+	}
+
+	return ret;
 }
