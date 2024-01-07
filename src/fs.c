@@ -383,7 +383,7 @@ static void AddToLast(uint sctBegin, uint si)
 	}
 }
 
-static uint CheckStorge(FSRoot* fe)
+static uint CheckStorage(FSRoot* fe)
 {
 	uint ret = 0;
 
@@ -448,7 +448,7 @@ static uint CreateInRoot(const char* name)
 
     if( root )
     {
-		CheckStorge(root);
+        CheckStorage(root);
 
 		if( CreateFileEntry(name, root->sctBegin, root->lastBytes) )
 		{
@@ -883,4 +883,22 @@ uint FRename(const char* ofn, const char* nfn)
 	}
 
 	return ret;
+}
+
+void listFile()
+{
+    FSRoot* root = (FSRoot*)ReadSector(ROOT_SCT_IDX);
+    FileEntry* feBase = (FileEntry*)ReadSector(root->sctBegin);
+    int i = 0;
+    int n = 0;
+	
+    printf("sctNum = %d\n", root->sctNum);
+    printf("lastBytes = %d\n", root->lastBytes);
+	
+    n = root->lastBytes / FE_BYTES;
+    for(i=0; i<n; i++)
+    {
+        FileEntry* fe = AddrOff(feBase, i);
+        printf("name = %s\n", fe->name);
+    }
 }
