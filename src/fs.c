@@ -1,6 +1,7 @@
 #include "hdraw.h"
 #include "fs.h"
 #include "utility.h"
+#include "list.h"
 
 #ifdef DTFSER
   #include <malloc.h>
@@ -18,6 +19,7 @@
 #define FIXED_SCT_SIZE 2                 //固定扇区占用数
 #define SCT_END_FLAG   ((uint)-1)
 #define FE_BYTES       sizeof(FileEntry)
+#define FD_BYTES       sizeof(FileDesc)
 #define FE_ITEM_CNT    (SECT_SIZE/FE_BYTES)  //一个扇区内能保存几个文件描述单元
 #define MAP_ITEM_CNT   (SECT_SIZE/sizeof(uint)) //一个扇区内的扇区分配单元个数
 
@@ -51,6 +53,16 @@ typedef struct
 	uint reserved[2];
 } FileEntry;
 
+typedef struct 
+{
+  ListNode head;   //链表头
+	FileEntry fe;
+	uint objIdx;    //当前的数据扇区编号
+	uint offset;    //当前偏移量
+	uint changed;
+	byte cache[SECT_SIZE]; //扇区缓冲区
+} FileDesc;
+
 typedef struct
 {
 	uint* pSct;   //扇区分配单元对应扇区的数据
@@ -58,6 +70,15 @@ typedef struct
 	uint sctOff;  //扇区分配表的第几个扇区
 	uint idxOff;  //对应扇区的第几个扇区分配单元
 } MapPos;
+
+static List gFDList = {0}; //用于保存已打开的文件名
+
+void FSModInit()
+{
+  HDRawModInit();
+
+  List_Init(&gFDList);
+}
 
 static void* ReadSector(uint si)
 {
@@ -226,7 +247,7 @@ static uint NextSector(uint si)
 
 			if(*pInt != SCT_END_FLAG)
 			{
-				ret = *pInt + header->mapSize + FIXED_SCT_SIZE;
+				ret = *pInt + header->mapSize + FIXED_SCT_SIZE; //返回值是绝对扇区地址
 			}
  		}
 
@@ -300,18 +321,18 @@ static uint FindPrev(uint sctBegin, uint si)
 	return ret;
 }
 
-//找到第idx个扇区
+//找到第idx个扇区 返回值是绝对扇区地址
 static uint FindIndex(uint sctBegin, uint idx)
 {
 	uint ret = sctBegin;
 	uint i = 0;
 
-    while( (i < idx) && ( ret != SCT_END_FLAG) )
-    {
+  while( (i < idx) && ( ret != SCT_END_FLAG) )
+  {
 		ret = NextSector(ret);
 
 		i++;
-    }
+  }
 
 	return ret;
 }
@@ -497,12 +518,12 @@ static FileEntry* FindInSector(const char* name, FileEntry* febase, uint cnt)
 	FileEntry* ret = NULL;
     uint i = 0;
 
-    //遍历传入的文件描述符单元
+  //遍历传入的文件描述符单元
 	for(i=0; i<cnt; i++)
 	{
 		FileEntry* fe = AddrOff(febase, i);
 
-        //比较名字
+    //比较名字
 		if( StrCmp(fe->name, name, -1) )
 		{
 			ret = (FileEntry*)Malloc(FE_BYTES);
@@ -526,7 +547,7 @@ static FileEntry* FindFileEntry(const char* name, uint sctBegin, uint sctNum, ui
 	uint next = sctBegin;
 	uint i = 0;
 
-    //先查找最后一个扇区前面的所有扇区 因为需要查找全部
+  //先查找最后一个扇区前面的所有扇区
 	for(i=0; i<(sctNum-1); i++)
 	{
 		FileEntry* febase = (FileEntry*)ReadSector(next);
@@ -548,17 +569,17 @@ static FileEntry* FindFileEntry(const char* name, uint sctBegin, uint sctNum, ui
 		}
 	}
 
-    //查找完最后一个扇区前面的所有扇区后 
-    //如果还没有找到则继续查找最后一个扇区
+  //查找完前面的所有扇区后 
+  //如果还没有找到则继续查找最后一个扇区
 	if( !ret )
 	{
 		uint cnt = lastBytes/FE_BYTES;
-        FileEntry* febase = (FileEntry*)ReadSector(next);
-		
-        if( febase )
-        {
+    FileEntry* febase = (FileEntry*)ReadSector(next);
+	
+    if( febase )
+    {
 			ret = FindInSector(name, febase, cnt);
-        }
+    }
 
 		Free(febase);
 	}
@@ -568,7 +589,7 @@ static FileEntry* FindFileEntry(const char* name, uint sctBegin, uint sctNum, ui
 
 static FileEntry* FindInRoot(const char* name)
 {
-	FSRoot* root = (FSRoot*)ReadSector(ROOT_SCT_IDX);
+	FSRoot* root = (FSRoot*)ReadSector(ROOT_SCT_IDX);  //读取根目录扇区信息
 	FileEntry* ret = NULL;
 
 	if( root && root->sctNum )
@@ -576,7 +597,7 @@ static FileEntry* FindInRoot(const char* name)
 		ret = FindFileEntry(name, root->sctBegin, root->sctNum, root->lastBytes);
 	}
 
-    Free(root);
+  Free(root);
 	
 	return ret;
 }
@@ -618,6 +639,19 @@ uint FExisted(const char* fn)
 static uint IsOpened(const char* name)
 {
 	uint ret = 0;
+	ListNode* pos = NULL;
+
+	List_ForEach(&gFDList, pos)
+	{
+	  FileDesc* fd = (FileDesc*)pos;
+
+	  if( StrCmp(fd->fe.name, name, -1) )
+	  {
+	     ret = 1;
+	     break;
+	  }
+	
+	}
 
 	return ret;
 }
@@ -748,6 +782,92 @@ static uint DeleteInRoot(const char* name)
 	return ret;
 }
 
+uint FOpen(const char* fn)
+{
+    FileDesc* ret = NULL;
+
+		if( fn && !IsOpened(fn) )
+		{
+		   FileEntry* fe = NULL;
+
+		   ret = (FileDesc*)Malloc(FD_BYTES); //分配空间
+		   fe = ret ? FindInRoot(fn) : NULL;  //按文件名在根目录进行查找
+
+		   if( ret && fe )
+		   {
+		      ret->fe = *fe;  //赋值对应的文件描述符信息 浅拷贝
+		      ret->objIdx = SCT_END_FLAG;
+		      ret->offset = SECT_SIZE;
+		      ret->changed = 0;
+
+		      List_Add(&gFDList, (ListNode *)ret);
+		   }
+
+		   Free(fe);
+		}
+
+		return (uint)ret;
+}
+
+static uint IsFDValid(FileDesc* fd)
+{
+   uint ret = 0;
+   ListNode* pos = NULL;
+
+   //遍历链表查看是否是已经打开的文件
+   List_ForEach(&gFDList, pos)
+   {
+      if( IsEqual(pos, fd) )
+      {
+        ret = 1;
+        break;
+      }
+   }
+
+   return ret;
+}
+
+static uint FlushCache(FileDesc* fd)
+{
+   uint ret = 1;
+
+   if( fd->changed )
+   {
+      uint sctIdx = FindIndex(fd->fe.sctBegin, fd->objIdx);
+
+      ret = 0;
+
+      //将数据写入到对应扇区内
+      if( (sctIdx != SCT_END_FLAG) && (ret = HDRawWrite(sctIdx, fd->cache)))
+      {
+          fd->changed = 0;
+      }
+      
+   }
+
+   return ret;
+}
+
+static uint ToFlush(FileDesc* fd)
+{
+   //分别是写入到数据区和扇区管理区
+   return FlushCache(fd) && FlushFileEntry(&fd->fe);
+}
+
+void FClose(uint fd)
+{
+   FileDesc* pf = (FileDesc*)fd;
+
+   if( IsFDValid(pf) )
+   {
+      ToFlush(pf);
+
+      List_DelNode((ListNode *) pf);
+
+      Free(pf);
+   }
+}
+
 uint FDelete(const char* fn)
 {
 	return fn && !IsOpened(fn) && DeleteInRoot(fn) ? FS_SUCCEED : FS_FAILED;
@@ -850,9 +970,9 @@ static uint FlushFileEntry(FileEntry* fe)
 	FileEntry* feBase = ReadSector(fe->inSctIdx);
 	FileEntry* feInSct = AddrOff(feBase, fe->inSctOff);
 
-	*feInSct = *fe;
+	*feInSct = *fe;  //赋值
 
-	ret = HDRawWrite(fe->inSctIdx, (byte *) feBase);
+	ret = HDRawWrite(fe->inSctIdx, (byte *) feBase); //写入硬盘
 
 	Free(feBase);
 
