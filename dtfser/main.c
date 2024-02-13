@@ -5,21 +5,32 @@ int main(void)
 {
     HDRawSetName("hd.img");
 
-    HDRawModInit();
+    FSModInit();
 
-    printf("format: %d\n", FSFormat());
-    printf("is_formatted: %d\n", FSIsFormatted());
-    printf("create: %d\n", FCreate("1.txt"));
-    printf("create: %d\n", FCreate("2.txt"));
-	printf("create: %d\n", FCreate("3.txt"));
-	printf("create: %d\n", FCreate("4.txt"));
-	printf("create: %d\n", FCreate("5.txt"));
+    //FSFormat();
 
-    printf("delete: %d\n", FDelete("3.txt"));
-    printf("existed: %d\n", FExisted("3.txt"));
+    if( FSIsFormatted() )
+    {
+        const char* fn = "test.txt";
+        char str[] = "TEST";
 
-	listFile();
+        if( FExisted(fn) == FS_EXISTED )
+        {
+            //FDelete(fn);
+        }
 
+        //printf("create = %d\n", FCreate(fn));
+
+        uint fd = FOpen(fn);
+
+        printf("fd = %d\n", fd);
+
+        printf("write bytes = %d\n", FWrite(fd, str, sizeof(str)));
+
+        FClose(fd);
+
+        readFromRoot(fn);
+    }
 
     HDRawFlush();
 

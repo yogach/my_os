@@ -19,4 +19,9 @@ uint FExisted(const char* fn);
 uint FDelete(const char* fn);
 uint FRename(const char* ofn, const char* nfn);
 
+uint FOpen(const char* fn);
+uint FWrite(uint fd, byte* buf, uint len);
+void FClose(uint fd);
+
+
 #endif

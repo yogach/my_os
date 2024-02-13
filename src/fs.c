@@ -58,7 +58,7 @@ typedef struct
   ListNode head;   //链表头
 	FileEntry fe;
 	uint objIdx;    //当前的数据扇区编号
-	uint offset;    //当前偏移量
+	uint offset;    //当前写入指针的偏移量
 	uint changed;
 	byte cache[SECT_SIZE]; //扇区缓冲区
 } FileDesc;
@@ -321,7 +321,7 @@ static uint FindPrev(uint sctBegin, uint si)
 	return ret;
 }
 
-//找到第idx个扇区 返回值是绝对扇区地址
+//找到以sctBegin扇区起始的第idx个扇区 返回值是绝对扇区地址
 static uint FindIndex(uint sctBegin, uint idx)
 {
 	uint ret = sctBegin;
@@ -408,10 +408,10 @@ static uint CheckStorage(FSRoot* fe)
 {
 	uint ret = 0;
 
-    //判断扇区是否已经被写满了
+  //判断扇区是否已经被写满了
 	if( fe->lastBytes == SECT_SIZE )
 	{
-		uint si = AllocSector();  //分配一个扇区
+		uint si = AllocSector();  //分配一个新扇区
 
 		if( si != SCT_END_FLAG )
 		{
@@ -848,6 +848,21 @@ static uint FlushCache(FileDesc* fd)
    return ret;
 }
 
+static uint FlushFileEntry(FileEntry* fe)
+{
+	uint ret = 0;
+	FileEntry* feBase = ReadSector(fe->inSctIdx);
+	FileEntry* feInSct = AddrOff(feBase, fe->inSctOff);
+
+	*feInSct = *fe;  //赋值
+
+	ret = HDRawWrite(fe->inSctIdx, (byte *) feBase); //写入硬盘
+
+	Free(feBase);
+
+	return ret;
+}
+
 static uint ToFlush(FileDesc* fd)
 {
    //分别是写入到数据区和扇区管理区
@@ -866,6 +881,103 @@ void FClose(uint fd)
 
       Free(pf);
    }
+}
+
+static uint ReadToCache(FileDesc* fd, uint idx)
+{
+   uint ret = 0;
+
+   if( idx < fd->fe.sctNum )
+   {
+      uint sctIdx = FindIndex(fd->fe.sctBegin, idx);
+
+      ToFlush(fd);  //将当前cache中的内容写回到硬盘中
+
+      //重新从硬盘中读取新扇区到cache
+      if( (sctIdx != SCT_END_FLAG) && (ret = HDRawRead(sctIdx, fd->cache) ) )
+      {
+         fd->objIdx = idx;
+         fd->offset = 0;
+         fd->changed = 0;
+      }
+   }
+
+   return ret;
+}
+
+static uint PrepareCache(FileDesc* fd, uint objIdx)
+{
+    CheckStorage(&fd->fe); //判断是否需要分配一个新扇区
+
+    return ReadToCache(fd, objIdx);
+}
+
+static uint CopyToCache(FileDesc* fd, byte* buf, uint len)
+{
+    uint ret = -1;
+
+    if( fd->objIdx != SCT_END_FLAG )
+    {
+       uint n = SECT_SIZE - fd->offset;  
+       byte* p = AddrOff(fd->cache, fd->offset);
+
+       n = (n < len) ? n : len; //计算当前cache还可以写多长数据
+
+       MemCpy(p, buf, n);
+
+       fd->offset += n;
+       fd->changed = 1;
+
+       //假设是当前写入的是最后一个扇区则设置一下 lastBytes
+       if( ((fd->fe.sctNum - 1) == fd->objIdx) && (fd->fe.lastBytes < fd->offset) )
+       {
+           fd->fe.lastBytes = fd->offset;
+       }
+
+       ret = n;
+    }
+
+    return ret;
+}
+
+static uint ToWrite(FileDesc* fd, byte* buf, uint len)
+{
+    uint ret = 1;
+    uint i = 0;
+    uint n = 0;
+
+    while( (i < len) && ret )
+    {
+       byte* p = AddrOff(buf, i);
+
+       if( fd->offset == SECT_SIZE )  //如果当前扇区已经写满
+       {
+         ret = PrepareCache(fd, fd->objIdx + 1);
+       }
+
+       if( ret )
+       {
+          n = CopyToCache(fd, p, len - i);
+
+          i += n;
+       }
+    }
+
+    ret = i;  //返回值是写入的数据长度
+
+    return ret;
+}
+
+uint FWrite(uint fd, byte* buf, uint len)
+{
+   uint ret = -1;
+
+   if( IsFDValid((FileDesc *) fd) && buf )
+   {
+      ret = ToWrite((FileDesc*)fd, buf, len);
+   }
+
+   return ret;
 }
 
 uint FDelete(const char* fn)
@@ -964,21 +1076,6 @@ uint FSIsFormatted()
 	return ret;		
 }
 
-static uint FlushFileEntry(FileEntry* fe)
-{
-	uint ret = 0;
-	FileEntry* feBase = ReadSector(fe->inSctIdx);
-	FileEntry* feInSct = AddrOff(feBase, fe->inSctOff);
-
-	*feInSct = *fe;  //赋值
-
-	ret = HDRawWrite(fe->inSctIdx, (byte *) feBase); //写入硬盘
-
-	Free(feBase);
-
-	return ret;
-}
-
 uint FRename(const char* ofn, const char* nfn)
 {
 	uint ret = FS_FAILED;
@@ -1021,4 +1118,19 @@ void listFile()
         FileEntry* fe = AddrOff(feBase, i);
         printf("name = %s\n", fe->name);
     }
+}
+
+void readFromRoot(const char* fn)
+{
+	FileEntry* fe = FindInRoot(fn);
+	
+	if( fe )
+	{
+			byte buf[SECT_SIZE] = {0};
+	
+			HDRawRead(fe->sctBegin, buf);
+	
+			printf("content = %s\n", buf); //这里只会打印一个字符串
+	}
+
 }
