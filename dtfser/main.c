@@ -12,7 +12,8 @@ int main(void)
     if( FSIsFormatted() )
     {
         const char* fn = "test.txt";
-        char str[] = "TEST";
+        char str[512] = "TEST";
+        char buf[512] = {0};
 
         if( FExisted(fn) == FS_EXISTED )
         {
@@ -29,7 +30,21 @@ int main(void)
 
         FClose(fd);
 
-        readFromRoot(fn);
+        fd = FOpen(fn);
+
+        printf("fd = %d\n", fd);
+        printf("pos = %d\n", FTell(fd));
+        printf("seek = %d\n", FSeek(fd, 200));
+        printf("pos = %d\n", FTell(fd));
+        printf("erase = %d\n", FErase(fd, 400));
+        printf("len = %d\n", FLength(fd));
+        printf("pos = %d\n", FTell(fd));
+        printf("seek = %d\n", FSeek(fd, 0));
+        printf("read bytes = %d\n", FRead(fd, buf, sizeof(buf)));
+        printf("content = %s\n", buf);
+
+        FClose(fd);
+        
     }
 
     HDRawFlush();

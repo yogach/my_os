@@ -1102,6 +1102,93 @@ uint FRename(const char* ofn, const char* nfn)
 	return ret;
 }
 
+static uint GetFileLen(FileDesc* fd)
+{
+   uint ret = 0;
+
+   if( fd->fe.sctBegin != SCT_END_FLAG )
+   {
+      ret = (fd->fe.sctNum - 1) * SECT_SIZE + fd->fe.lastBytes; //先计算完整扇区的大小 再加上最后一个扇区的bytes大小
+   }
+
+   return ret;
+}
+
+static uint GetFilePos(FileDesc* fd)
+{
+   uint ret = 0;
+
+   if( fd->objIdx != SCT_END_FLAG )
+   {
+      ret = fd->objIdx * SECT_SIZE + fd->offset; //计算当前在文件的哪个位置
+   }
+
+   return ret;
+}
+
+static uint CopyFromCache(FileDesc* fd, byte* buf, uint len)
+{
+   uint ret = (fd->objIdx != SCT_END_FLAG);
+
+   if( ret )
+   {
+      uint n = SECT_SIZE - fd->offset;
+      byte* p = AddrOff(fd->cache, fd->offset);
+
+      n = (n < len) ? n : len;  //计算本次拷贝还能拷多少长度数据
+
+      MemCpy(buf, p, n);
+
+      fd->offset += n;
+
+      ret = n;
+   }
+
+   return ret;
+}
+
+static uint ToRead(FileDesc* fd, byte* buf, uint len)
+{
+   uint ret = -1;
+   uint n = GetFileLen(fd) - GetFilePos(fd);
+   uint i = 0;
+
+   len = (len < n) ? len : n;
+
+   while( (i < len) && ret )
+   {
+      byte* p = AddrOff(buf, i);
+
+      if( fd->offset == SECT_SIZE )  //如果当前读写指针超过一个扇区 则读取下一个扇区
+      {
+         ret = PrepareCache(fd, fd->objIdx + 1);
+      }
+
+      if( ret )
+      {
+         n = CopyFromCache(fd, buf, len - i); //拷贝剩余部分
+      }
+
+      i += n;
+   }
+
+   ret = i;
+
+   return ret;
+}
+
+uint FRead(uint fd, byte* buf, uint len)
+{
+    uint ret = -1;
+
+    if( IsFDValid((FileDesc*)fd) && buf)
+    {
+      ret = ToRead((FileDesc*)fd, buf, len); 
+    }
+
+    return ret;
+}
+
 void listFile()
 {
     FSRoot* root = (FSRoot*)ReadSector(ROOT_SCT_IDX);
@@ -1120,17 +1207,100 @@ void listFile()
     }
 }
 
-void readFromRoot(const char* fn)
+//重新设置读写指针的位置
+static uint ToLocate(FileDesc* fd, uint pos)
 {
-	FileEntry* fe = FindInRoot(fn);
-	
-	if( fe )
-	{
-			byte buf[SECT_SIZE] = {0};
-	
-			HDRawRead(fe->sctBegin, buf);
-	
-			printf("content = %s\n", buf); //这里只会打印一个字符串
-	}
+   uint ret = -1;
+   uint len = GetFileLen(fd);
 
+   pos = (pos < len) ? pos : len;
+
+	 uint objIdx = pos / SECT_SIZE;
+	 uint offset = pos % SECT_SIZE;
+	 uint sctIdx = FindIndex(fd->fe.sctBegin, objIdx);
+
+	 ToFlush(fd);
+
+	 if( (sctIdx != SCT_END_FLAG ) && HDRawRead(sctIdx, fd->cache) )
+	 {
+        fd->objIdx = objIdx;
+        fd->offset = offset;
+
+        ret = pos;	    
+	 }
+
+   return ret; 
+}
+
+uint FErase(uint fd, uint bytes)
+{
+   uint ret = 0;
+   FileDesc* pf = (FileDesc*)fd;
+
+   if( IsFDValid(pf) )
+   {
+      uint pos = GetFilePos(pf);
+      uint len = GetFileLen(pf);
+
+      ret = EraseLast(&pf->fe, bytes); //擦除后面的字节
+
+      len -= ret;
+
+      if( ret && (pos > len) )
+      {
+          ToLocate(pf, len);
+      }
+   }
+}
+
+uint FSeek(uint fd, uint pos)
+{
+    uint ret = -1;
+    FileDesc* pf = (FileDesc*)fd;
+
+    if( IsFDValid(pf) )
+    {
+        ret = ToLocate(pf, pos);
+    }
+
+    return ret;  
+}
+
+uint FLength(uint fd)
+{
+    uint ret = -1;
+    FileDesc* pf = (FileDesc*)fd;
+
+    if( IsFDValid(pf) )
+    {
+        ret = GetFileLen(pf);
+    }
+
+    return ret;
+}
+
+uint FTell(uint fd)
+{
+    uint ret = -1;
+    FileDesc* pf = (FileDesc*)fd;
+
+    if( IsFDValid(pf) )
+    {
+        ret = GetFilePos(pf);
+    }
+
+    return ret;
+}
+
+uint FFlush(uint fd)
+{
+    uint ret = -1;
+    FileDesc* pf = (FileDesc*)fd;
+
+    if( IsFDValid(pf) )
+    {
+        ret = ToFlush(pf);
+    }
+
+    return ret;
 }
